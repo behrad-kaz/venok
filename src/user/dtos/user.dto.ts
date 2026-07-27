@@ -1,4 +1,15 @@
-import { IsNotEmpty, IsString, IsOptional, IsEmail, IsEnum, MinLength, MaxLength, Matches } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsOptional,
+  IsEmail,
+  IsEnum,
+  MinLength,
+  MaxLength,
+  Matches,
+  IsNumber,
+  Min,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UserRole } from '../entities/user.entity';
 
@@ -37,31 +48,40 @@ export class UserDto {
   })
   password: string;
 
-  @ApiPropertyOptional({ 
-    description: 'نقش کاربر', 
-    enum: UserRole, 
-    default: UserRole.USER 
+  @ApiPropertyOptional({
+    description: 'نقش کاربر',
+    enum: UserRole,
+    default: UserRole.USER,
   })
   @IsOptional()
   @IsEnum(UserRole)
   role?: UserRole;
 
-  @ApiPropertyOptional({ 
-    description: 'آواتار', 
+  @ApiPropertyOptional({
+    description: 'آواتار',
     example: '/files/avatar.jpg',
     nullable: true,
   })
   @IsOptional()
   @IsString()
   avatar?: string | null;
+
+  @ApiPropertyOptional({
+    description: 'شناسه سازمان',
+    example: 1,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  organizationId?: number;
 }
 
-// DTO برای لاگین
 export class LoginDto {
-  @ApiProperty({ description: 'ایمیل', example: 'ali@gmail.com' })
-  @IsEmail({}, { message: 'فرمت ایمیل نامعتبر است' })
-  @IsNotEmpty({ message: 'ایمیل نباید خالی باشد' })
-  email: string;
+  @ApiProperty({ description: 'شماره همراه', example: '09123456789' })
+  @IsString()
+  @IsNotEmpty({ message: 'شماره همراه نباید خالی باشد' })
+  @Matches(/^09[0-9]{9}$/, { message: 'شماره همراه نامعتبر است. باید با 09 شروع شود و ۱۱ رقم باشد' })
+  mobile: string;
 
   @ApiProperty({ description: 'رمز عبور', example: '12345678' })
   @IsString()
@@ -69,7 +89,6 @@ export class LoginDto {
   password: string;
 }
 
-// DTO برای آپدیت کاربر
 export class UpdateUserDto {
   @ApiPropertyOptional({ description: 'نام' })
   @IsOptional()
@@ -91,7 +110,7 @@ export class UpdateUserDto {
   @Matches(/^09[0-9]{9}$/, { message: 'شماره تماس نامعتبر است' })
   mobile?: string;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'آواتار - برای حذف مقدار null ارسال کنید',
     nullable: true,
   })
@@ -104,7 +123,6 @@ export class UpdateUserDto {
   isActive?: boolean;
 }
 
-// DTO برای تغییر پسورد
 export class ChangePasswordDto {
   @ApiProperty({ description: 'رمز عبور فعلی' })
   @IsString()

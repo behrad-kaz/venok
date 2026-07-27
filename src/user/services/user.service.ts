@@ -1,8 +1,19 @@
-import { Injectable, NotFoundException, BadRequestException, UnauthorizedException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  UnauthorizedException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like } from 'typeorm';
 import { UserEntity, UserRole } from '../entities/user.entity';
-import { UserDto, LoginDto, UpdateUserDto, ChangePasswordDto } from '../dtos/user.dto';
+import {
+  UserDto,
+  LoginDto,
+  UpdateUserDto,
+  ChangePasswordDto,
+} from '../dtos/user.dto';
 import { UserQueryDto, UserSort } from '../dtos/user-query.dto';
 import { deleteImage, extractFileInfo } from '../../shared/utils/file-utils';
 import * as bcrypt from 'bcrypt';
@@ -14,7 +25,6 @@ export class UserService {
     private userRepository: Repository<UserEntity>,
   ) {}
 
-  // ✅ متد جدید برای استفاده در JwtStrategy (بدون چک کردن دسترسی)
   async findUserById(id: number) {
     return await this.userRepository.findOne({
       where: { id },
@@ -28,16 +38,22 @@ export class UserService {
         isActive: true,
         avatar: true,
         lastLogin: true,
+        organizationId: true,
         createdAt: true,
         updatedAt: true,
       },
     });
   }
 
-  async findAll(queryParams: UserQueryDto, currentUserId: number, currentUserRole: UserRole) {
-    // فقط ادمین می‌تواند لیست همه کاربران را ببیند
+  async findAll(
+    queryParams: UserQueryDto,
+    currentUserId: number,
+    currentUserRole: UserRole,
+  ) {
     if (currentUserRole !== UserRole.ADMIN) {
-      throw new ForbiddenException('You do not have permission to view all users');
+      throw new ForbiddenException(
+        'You do not have permission to view all users',
+      );
     }
 
     const page = queryParams.page || 1;
@@ -83,6 +99,7 @@ export class UserService {
         isActive: true,
         avatar: true,
         lastLogin: true,
+        organizationId: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -101,7 +118,6 @@ export class UserService {
   }
 
   async findOne(id: number, currentUserId: number, currentUserRole: UserRole) {
-    // کاربر عادی فقط می‌تواند خودش را ببیند
     if (currentUserRole !== UserRole.ADMIN && currentUserId !== id) {
       throw new ForbiddenException('You can only view your own profile');
     }
@@ -118,6 +134,7 @@ export class UserService {
         isActive: true,
         avatar: true,
         lastLogin: true,
+        organizationId: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -134,13 +151,15 @@ export class UserService {
     });
   }
 
+  async findByMobile(mobile: string) {
+    return await this.userRepository.findOne({
+      where: { mobile },
+    });
+  }
+
   async create(body: UserDto) {
-    // بررسی تکراری نبودن ایمیل و موبایل
     const existingUser = await this.userRepository.findOne({
-      where: [
-        { email: body.email },
-        { mobile: body.mobile }
-      ],
+      where: [{ email: body.email }, { mobile: body.mobile }],
     });
 
     if (existingUser) {
@@ -153,17 +172,29 @@ export class UserService {
     }
 
     const user = this.userRepository.create({
-      ...body,
+      firstName: body.firstName,
+      lastName: body.lastName,
+      email: body.email,
+      mobile: body.mobile,
+      password: body.password,
       role: body.role || UserRole.USER,
+      avatar: body.avatar || null,
+      isActive: true,
+      organizationId: body.organizationId || null,
     });
 
     const saved = await this.userRepository.save(user);
-    
+
     const { password, ...result } = saved;
     return result;
   }
 
-  async update(id: number, body: UpdateUserDto, currentUserId: number, currentUserRole: UserRole) {
+  async update(
+    id: number,
+    body: UpdateUserDto,
+    currentUserId: number,
+    currentUserRole: UserRole,
+  ) {
     if (currentUserRole !== UserRole.ADMIN && currentUserId !== id) {
       throw new ForbiddenException('You can only update your own profile');
     }
@@ -207,7 +238,7 @@ export class UserService {
     if (body.isActive !== undefined) user.isActive = body.isActive;
 
     const updated = await this.userRepository.save(user);
-    
+
     const { password, ...result } = updated;
     return result;
   }
@@ -218,7 +249,7 @@ export class UserService {
     }
 
     const user = await this.findOne(id, currentUserId, currentUserRole);
-    
+
     if (user.avatar) {
       console.log(`🗑️ Deleting avatar: ${user.avatar}`);
       const { fileName, folder } = extractFileInfo(user.avatar);
@@ -231,7 +262,7 @@ export class UserService {
 
   async login(body: LoginDto) {
     const user = await this.userRepository.findOne({
-      where: { email: body.email },
+      where: { mobile: body.mobile },
     });
 
     if (!user) {
@@ -257,7 +288,12 @@ export class UserService {
     };
   }
 
-  async changePassword(id: number, body: ChangePasswordDto, currentUserId: number, currentUserRole: UserRole) {
+  async changePassword(
+    id: number,
+    body: ChangePasswordDto,
+    currentUserId: number,
+    currentUserRole: UserRole,
+  ) {
     if (currentUserRole !== UserRole.ADMIN && currentUserId !== id) {
       throw new ForbiddenException('You can only change your own password');
     }
@@ -277,7 +313,7 @@ export class UserService {
 
     user.password = body.newPassword;
     const updated = await this.userRepository.save(user);
-    
+
     const { password, ...result } = updated;
     return {
       message: 'Password changed successfully',
@@ -285,7 +321,11 @@ export class UserService {
     };
   }
 
-  async toggleStatus(id: number, currentUserId: number, currentUserRole: UserRole) {
+  async toggleStatus(
+    id: number,
+    currentUserId: number,
+    currentUserRole: UserRole,
+  ) {
     if (currentUserRole !== UserRole.ADMIN) {
       throw new ForbiddenException('Only admins can toggle user status');
     }
@@ -293,7 +333,7 @@ export class UserService {
     const user = await this.findOne(id, currentUserId, currentUserRole);
     user.isActive = !user.isActive;
     const updated = await this.userRepository.save(user);
-    
+
     const { password, ...result } = updated;
     return {
       message: `User ${user.isActive ? 'activated' : 'deactivated'} successfully`,

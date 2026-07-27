@@ -13,20 +13,20 @@ export class UserEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ length: 100 })
+  @Column({ type: 'varchar', length: 100 })
   firstName: string;
 
-  @Column({ length: 100 })
+  @Column({ type: 'varchar', length: 100 })
   lastName: string;
 
-  @Column({ length: 100, unique: true })
+  @Column({ type: 'varchar', length: 100, unique: true })
   email: string;
 
-  @Column({ length: 20, unique: true })
+  @Column({ type: 'varchar', length: 20, unique: true })
   mobile: string;
 
   @Exclude()
-  @Column({ length: 255 })
+  @Column({ type: 'varchar', length: 255 })
   password: string;
 
   @Column({ 
@@ -36,19 +36,22 @@ export class UserEntity {
   })
   role: UserRole;
 
-  @Column({ default: true })
+  @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   avatar: string | null;
 
-  @Column({ nullable: true })
-  lastLogin: Date;
+  @Column({ type: 'timestamp', nullable: true })
+  lastLogin: Date | null;
 
-  @CreateDateColumn()
+  @Column({ type: 'int', nullable: true })
+  organizationId: number | null;
+
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 
   @BeforeInsert()

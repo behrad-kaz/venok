@@ -3,15 +3,24 @@ import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
-import cookieParser from 'cookie-parser';  
-import csurf from 'csurf'; 
-import { Request, Response, NextFunction } from 'express';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // ============================================
-  // 1. Helmet - امنیت HTTP headers
+  // 1. CORS - باید قبل از Helmet باشد
+  // ============================================
+  app.enableCors({
+    origin: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'x-context-token'],
+    exposedHeaders: ['Content-Disposition'],
+  });
+
+  // ============================================
+  // 2. Helmet - با تنظیمات مناسب برای تصاویر
   // ============================================
   app.use(
     helmet({
@@ -19,55 +28,28 @@ async function bootstrap() {
         directives: {
           defaultSrc: ["'self'"],
           styleSrc: ["'self'", "'unsafe-inline'"],
-          imgSrc: ["'self'", 'data:', 'validator.swagger.io'],
+          // ✅ اجازه بارگذاری تصاویر از localhost و data
+          imgSrc: ["'self'", 'data:', 'validator.swagger.io', 'http://localhost:3000', 'http://localhost:3001'],
           scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+          // ✅ اجازه اتصال به API
+          connectSrc: ["'self'", 'http://localhost:3000', 'http://localhost:3001'],
         },
       },
       crossOriginEmbedderPolicy: false,
+      // ✅ اجازه دسترسی به منابع از domainهای دیگر
+      crossOriginResourcePolicy: { policy: "cross-origin" },
+      // ✅ اجازه نمایش محتوا در iframe
+      frameguard: { action: 'deny' },
     }),
   );
 
   // ============================================
-  // 2. Cookie Parser - برای CSRF
+  // 3. Cookie Parser
   // ============================================
   app.use(cookieParser());
 
   // ============================================
-  // 3. CSRF Protection (با استثنا برای Swagger)
-  // ============================================
-  // فقط برای مسیرهای غیر از Swagger
-  app.use((req: Request, res: Response, next: NextFunction) => {
-    // استثنا برای Swagger و API های public
-    const excludedPaths = ['/documentation', '/documentation-json', '/health'];
-    if (excludedPaths.some((path) => req.path.startsWith(path))) {
-      return next();
-    }
-    
-    // CSRF محافظت
-    const csrfProtection = csurf({
-      cookie: {
-        httpOnly: true,
-        sameSite: 'strict',
-        secure: process.env.NODE_ENV === 'production',
-      },
-    });
-    
-    return csrfProtection(req, res, next);
-  });
-
-  // ============================================
-  // 4. CORS
-  // ============================================
-  app.enableCors({
-    origin: process.env.NODE_ENV === 'production' 
-      ? ['https://yourdomain.com'] 
-      : '*',
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    credentials: true,
-  });
-
-  // ============================================
-  // 5. Global Pipes
+  // 4. Global Pipes
   // ============================================
   app.useGlobalPipes(
     new ValidationPipe({
@@ -79,7 +61,7 @@ async function bootstrap() {
   );
 
   // ============================================
-  // 6. Swagger
+  // 5. Swagger Documentation
   // ============================================
   const config = new DocumentBuilder()
     .setTitle('Nest App')
@@ -106,7 +88,7 @@ async function bootstrap() {
   });
 
   // ============================================
-  // 7. Start Server
+  // 6. Start Server
   // ============================================
   const port = process.env.PORT ?? 3000;
   await app.listen(port);

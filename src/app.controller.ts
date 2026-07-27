@@ -11,7 +11,7 @@ import {
   Delete,
 } from '@nestjs/common';
 import { AppService } from './app.service';
-import { ApiConsumes, ApiBody, ApiTags, ApiSecurity } from '@nestjs/swagger';
+import { ApiConsumes, ApiBody, ApiTags, ApiSecurity, ApiBearerAuth } from '@nestjs/swagger';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { deleteImage, saveImage } from './shared/utils/file-utils';
 import { UploadedFileDto } from './shared/dtos/uploaded-file.dto';
@@ -20,7 +20,7 @@ import { DeleteFileDto } from './shared/dtos/delete-file.dto';
 import { ImagesPipe } from './shared/pips/images.pipe';
 
 @ApiTags('upload')
-@ApiSecurity('apiKey')
+@ApiBearerAuth('JWT-auth') 
 @Controller('upload')
 export class AppController {
   constructor(private readonly appService: AppService) {}

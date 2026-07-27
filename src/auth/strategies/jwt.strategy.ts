@@ -31,27 +31,27 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: any) {
     console.log('📦 JWT Payload received:', payload);
 
-    // بررسی وجود کاربر در دیتابیس - بدون نیاز به چک کردن دسترسی
     const user = await this.userService.findUserById(payload.sub);
     if (!user) {
       console.error('❌ User not found with ID:', payload.sub);
       throw new UnauthorizedException('User not found');
     }
 
-    // بررسی فعال بودن کاربر
     if (!user.isActive) {
       console.error('❌ User account is deactivated:', payload.email);
       throw new UnauthorizedException('Account is deactivated');
     }
 
-    console.log('✅ User validated:', user.email, 'Role:', user.role);
+    console.log('✅ User validated:', user.mobile, 'Role:', user.role);
 
     return {
       id: payload.sub,
       email: payload.email,
+      mobile: payload.mobile,
       role: payload.role,
       firstName: payload.firstName,
       lastName: payload.lastName,
+      organizationId: user.organizationId,
     };
   }
 }

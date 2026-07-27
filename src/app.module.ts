@@ -3,19 +3,25 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { BlogModule } from './blog/blog.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { LogFilter } from './shared/filters/log.filter';
 import { LogInterceptor } from './shared/interceptors/log.interceptor';
+import { LogService } from './shared/services/log.service';
+import { LogEntity } from './shared/schemas/log.entity';
 import { TimeMiddleware } from './shared/middleware/time.middleware';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { TicketModule } from './ticket/ticket.module';
+import { OrganizationModule } from './organization/organization.module';
+import { WorkspaceModule } from './workspace/workspace.module';
+import { StaffModule } from './staff/staff.module';
+import { SupportModule } from './support/support.module';
+import { ConversationModule } from './conversation/conversation.module';
+import { WidgetModule } from './widget/widget.module';
 
 @Module({
   imports: [
@@ -38,25 +44,30 @@ import { TicketModule } from './ticket/ticket.module';
       }),
       inject: [ConfigService],
     }),
-    // ✅ برای نسخه 5.x - استفاده از آرایه
+    TypeOrmModule.forFeature([LogEntity]),
     ThrottlerModule.forRoot([
       {
-        ttl: 60000,  // زمان بر حسب میلی‌ثانیه (60 ثانیه)
-        limit: 30,   // تعداد درخواست مجاز در هر ttl
+        ttl: 60000,
+        limit: 30,
       },
     ]),
     AuthModule,
-    BlogModule,
     UserModule,
+    OrganizationModule, 
+    WorkspaceModule,
+    StaffModule,
+    SupportModule,
+    ConversationModule,
+    WidgetModule,
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'files'),
       serveRoot: '/files',
     }),
-    TicketModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
+    LogService,
     {
       provide: APP_FILTER,
       useClass: LogFilter,

@@ -33,7 +33,7 @@ export class LogEntity {
   metadata: any;
 
   @Column({ type: 'int', nullable: true })
-  userId: number;  // ← اضافه کنید
+  userId: number;
 
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;

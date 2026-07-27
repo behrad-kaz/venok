@@ -11,8 +11,8 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async validateUser(email: string, password: string): Promise<any> {
-    const user = await this.userService.findByEmail(email);
+  async validateUser(mobile: string, password: string): Promise<UserEntity> {
+    const user = await this.userService.findByMobile(mobile);
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
@@ -27,23 +27,22 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // حذف پسورد از خروجی
-    const { password: _, ...result } = user;
-    return result;
+    return user;
   }
 
   async login(loginDto: LoginDto) {
-    const user = await this.validateUser(loginDto.email, loginDto.password);
+    const user = await this.validateUser(loginDto.mobile, loginDto.password);
 
-    // به‌روزرسانی آخرین لاگین
     await this.userService.updateLastLogin(user.id);
 
     const payload = {
       sub: user.id,
       email: user.email,
+      mobile: user.mobile,
       role: user.role,
       firstName: user.firstName,
       lastName: user.lastName,
+      organizationId: user.organizationId,
     };
 
     return {
@@ -51,10 +50,12 @@ export class AuthService {
       user: {
         id: user.id,
         email: user.email,
+        mobile: user.mobile,
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
         avatar: user.avatar,
+        organizationId: user.organizationId,
       },
     };
   }
@@ -62,18 +63,19 @@ export class AuthService {
   async register(userData: any) {
     const user = await this.userService.create(userData);
 
-    // تولید توکن برای کاربر جدید
     const payload = {
       sub: user.id,
       email: user.email,
+      mobile: user.mobile,
       role: user.role,
       firstName: user.firstName,
       lastName: user.lastName,
+      organizationId: user.organizationId,
     };
 
     return {
       access_token: this.jwtService.sign(payload),
-      user: user, // قبلاً پسورد در user.service حذف شده
+      user: user,
     };
   }
 
