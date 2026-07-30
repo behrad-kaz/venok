@@ -1,3 +1,6 @@
+// ============================================================
+// FILE: src/widget/services/widget.service.ts
+// ============================================================
 import {
   Injectable,
   NotFoundException,
@@ -5,7 +8,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository, In, IsNull } from 'typeorm';  // ✅ IsNull اضافه شد
 import { WidgetEntity } from '../entities/widget.entity';
 import { CreateWidgetDto, UpdateWidgetDto } from '../dtos/widget.dto';
 import { WorkspaceEntity } from '../../workspace/entities/workspace.entity';
@@ -29,20 +32,21 @@ export class WidgetService {
   }
 
   async getCurrentWidget(workspaceId: number) {
+    // ✅ بررسی وجود workspace
+    const workspace = await this.workspaceRepository.findOne({
+      where: { id: workspaceId },
+    });
+
+    if (!workspace) {
+      throw new NotFoundException(`Workspace with id ${workspaceId} not found`);
+    }
+
     let widget = await this.widgetRepository.findOne({
       where: { workspaceId },
     });
 
     // اگر ویجت وجود نداشت، یک ویجت پیش‌فرض ایجاد کن
     if (!widget) {
-      const workspace = await this.workspaceRepository.findOne({
-        where: { id: workspaceId },
-      });
-
-      if (!workspace) {
-        throw new NotFoundException('Workspace not found');
-      }
-
       widget = this.widgetRepository.create({
         workspaceId,
         widgetToken: this.generateWidgetToken(),
@@ -65,12 +69,14 @@ export class WidgetService {
       });
 
       await this.widgetRepository.save(widget);
+      console.log(`✅ ویجت پیش‌فرض برای workspace ${workspaceId} ایجاد شد`);
     }
 
     // دریافت اطلاعات دپارتمان‌ها
     const departments = await this.teamRepository.find({
       where: {
         isActive: true,
+        deletedAt: IsNull(),  // ✅ اصلاح شد
       },
       select: {
         id: true,
@@ -124,7 +130,7 @@ export class WidgetService {
 
     const saved = await this.widgetRepository.save(widget);
 
-    // دریافت اطلاعات دپارتمان‌ها - استفاده از In operator
+    // دریافت اطلاعات دپارتمان‌ها
     let departments: SupportTeamEntity[] = [];
     
     if (saved.supportTeamIds && saved.supportTeamIds.length > 0) {
@@ -132,6 +138,7 @@ export class WidgetService {
         where: {
           id: In(saved.supportTeamIds),
           isActive: true,
+          deletedAt: IsNull(),  // ✅ اصلاح شد
         },
         select: {
           id: true,
@@ -196,3 +203,4 @@ export class WidgetService {
     };
   }
 }
+// ============================================================

@@ -155,7 +155,11 @@ export class WorkspaceService {
     return workspace;
   }
 
-  async create(body: CreateWorkspaceDto, userId: number, organizationId: number) {
+  async create(
+    body: CreateWorkspaceDto,
+    userId: number,
+    organizationId: number,
+  ) {
     // بررسی وجود سازمان
     const organization = await this.organizationRepository.findOne({
       where: { id: organizationId },
@@ -199,28 +203,69 @@ export class WorkspaceService {
   ) {
     const workspace = await this.findOne(id);
 
-    // فقط ادمین یا مدیر workspace می‌تواند ویرایش کند
     if (userRole !== UserRole.ADMIN && workspace.managerStaffId !== userId) {
       throw new ForbiddenException(
         'You are not allowed to update this workspace',
       );
     }
 
-    // به‌روزرسانی فیلدها
+    // ============ اطلاعات شرکت ============
     if (body.name !== undefined) workspace.name = body.name;
     if (body.code !== undefined) workspace.code = body.code;
     if (body.slug !== undefined) workspace.slug = body.slug;
     if (body.status !== undefined) workspace.status = body.status;
     if (body.phone !== undefined) workspace.phone = body.phone;
     if (body.email !== undefined) workspace.email = body.email;
-    if (body.address !== undefined) workspace.address = body.address;
-    if (body.city !== undefined) workspace.city = body.city;
-    if (body.postalCode !== undefined) workspace.postalCode = body.postalCode;
+    if (body.logo !== undefined) workspace.logo = body.logo;
+
+    // ============ اطلاعات پشتیبانی ============
+    if (body.supportPhone !== undefined)
+      workspace.supportPhone = body.supportPhone;
+    if (body.supportEmail !== undefined)
+      workspace.supportEmail = body.supportEmail;
+    if (body.alertPhone !== undefined) workspace.alertPhone = body.alertPhone;
+    if (body.introText !== undefined) workspace.introText = body.introText;
+
+    // ============ ساعات کاری ============
+    if (body.workingDays !== undefined) {
+      workspace.workingDays = {
+        ...workspace.workingDays,
+        ...body.workingDays,
+      };
+    }
+    if (body.workStartTime !== undefined)
+      workspace.workStartTime = body.workStartTime;
+    if (body.workEndTime !== undefined)
+      workspace.workEndTime = body.workEndTime;
+    if (body.outOfHoursMessage !== undefined)
+      workspace.outOfHoursMessage = body.outOfHoursMessage;
+
+    // ============ اعلان‌ها ============
+    if (body.sendLinkSms !== undefined)
+      workspace.sendLinkSms = body.sendLinkSms;
+    if (body.sendOtpForPasswordChange !== undefined)
+      workspace.sendOtpForPasswordChange = body.sendOtpForPasswordChange;
+    if (body.notifyManagerForUnanswered !== undefined)
+      workspace.notifyManagerForUnanswered = body.notifyManagerForUnanswered;
+    if (body.notifyNewConversations !== undefined)
+      workspace.notifyNewConversations = body.notifyNewConversations;
+
+    // ============ امنیت ============
+    if (body.requireStrongPassword !== undefined)
+      workspace.requireStrongPassword = body.requireStrongPassword;
+    if (body.requirePhoneVerificationForPasswordChange !== undefined)
+      workspace.requirePhoneVerificationForPasswordChange =
+        body.requirePhoneVerificationForPasswordChange;
+    if (body.autoLogoutMinutes !== undefined)
+      workspace.autoLogoutMinutes = body.autoLogoutMinutes;
+
+    // ============ فیلدهای حذف شده ============
+    // address, city, postalCode - حذف شدند
+
     if (body.timezone !== undefined) workspace.timezone = body.timezone;
     if (body.locale !== undefined) workspace.locale = body.locale;
     if (body.managerStaffId !== undefined)
       workspace.managerStaffId = body.managerStaffId;
-    if (body.logo !== undefined) workspace.logo = body.logo;
 
     const saved = await this.workspaceRepository.save(workspace);
     return this.findOne(saved.id);

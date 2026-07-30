@@ -1,3 +1,6 @@
+// ============================================================
+// FILE: src/staff/services/staff.service.ts
+// ============================================================
 import {
   Injectable,
   NotFoundException,
@@ -5,7 +8,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like } from 'typeorm';
+import { Repository, Like, IsNull } from 'typeorm';
 import { StaffEntity, StaffStatus, StaffRole } from '../entities/staff.entity';
 import { CreateStaffDto, UpdateStaffDto } from '../dtos/staff.dto';
 import { StaffQueryDto } from '../dtos/staff-query.dto';
@@ -36,6 +39,9 @@ export class StaffService {
     if (organizationId) {
       where.organizationId = organizationId;
     }
+
+    // ✅ فقط کاربرانی که deletedAt ندارند (حذف نشده‌اند)
+    where.deletedAt = IsNull();
 
     if (queryParams.name) {
       where.name = Like(`%${queryParams.name}%`);
@@ -107,7 +113,7 @@ export class StaffService {
 
   async findOne(id: number) {
     const staff = await this.staffRepository.findOne({
-      where: { id },
+      where: { id, deletedAt: IsNull() },
       relations: {
         organization: true,
         user: true,
@@ -124,7 +130,7 @@ export class StaffService {
 
   async findByCode(code: string) {
     const staff = await this.staffRepository.findOne({
-      where: { code },
+      where: { code, deletedAt: IsNull() },
       relations: {
         organization: true,
         user: true,
@@ -141,7 +147,7 @@ export class StaffService {
 
   async findByUser(userId: number) {
     return await this.staffRepository.findOne({
-      where: { userId },
+      where: { userId, deletedAt: IsNull() },
       relations: {
         organization: true,
         user: true,
@@ -152,7 +158,7 @@ export class StaffService {
 
   async findByOrganization(organizationId: number) {
     return await this.staffRepository.find({
-      where: { organizationId },
+      where: { organizationId, deletedAt: IsNull() },
       relations: {
         organization: true,
         user: true,
@@ -209,7 +215,7 @@ export class StaffService {
       console.log('✅ دپارتمان پیدا شد:', department);
     }
 
-    // ✅ ایجاد کاربر
+    // ✅ ایجاد کاربر با شماره همراه و رمز عبور دریافتی
     const nameParts = body.name.trim().split(' ');
     const firstName = nameParts[0] || body.name;
     const lastName = nameParts.slice(1).join(' ') || '';
@@ -218,8 +224,8 @@ export class StaffService {
       firstName,
       lastName,
       email: body.email || `${body.code}@example.com`,
-      mobile: body.phone || '09123456789',
-      password: '12345678',
+      mobile: body.phone,
+      password: body.password,
       role: UserRole.USER,
       isActive: true,
       organizationId: organizationId,
@@ -253,20 +259,52 @@ export class StaffService {
     return this.findOne(saved.id);
   }
 
+  // ============================================================
+  // FILE: src/staff/services/staff.service.ts
+  // بخش update با استفاده از update() به جای save()
+  // ============================================================
   async update(
     id: number,
     body: UpdateStaffDto,
     userId: number,
     userRole: UserRole,
   ) {
-    const staff = await this.findOne(id);
+    console.log(
+      `🔄 به‌روزرسانی Staff با id: ${id}`,
+      JSON.stringify(body, null, 2),
+    );
 
+    // ✅ ابتدا Staff را پیدا کن (با بررسی وجود)
+    const staff = await this.staffRepository.findOne({
+      where: { id, deletedAt: IsNull() },
+      relations: {
+        organization: true,
+        user: true,
+        department: true,
+      },
+    });
+
+    if (!staff) {
+      console.error(`❌ Staff با id ${id} یافت نشد`);
+      throw new NotFoundException(`Staff with id ${id} not found`);
+    }
+
+    console.log(`✅ Staff با id ${id} پیدا شد:`, {
+      id: staff.id,
+      name: staff.name,
+      departmentId: staff.departmentId,
+      phone: staff.phone,
+      isActive: staff.isActive,
+    });
+
+    // بررسی دسترسی
     if (userRole !== UserRole.ADMIN && staff.userId !== userId) {
       throw new ForbiddenException(
         'You are not allowed to update this staff record',
       );
     }
 
+    // بررسی تکراری نبودن کد
     if (body.code && body.code !== staff.code) {
       const existingStaff = await this.staffRepository.findOne({
         where: { code: body.code },
@@ -276,6 +314,7 @@ export class StaffService {
       }
     }
 
+    // بررسی وجود دپارتمان
     if (body.departmentId !== undefined && body.departmentId !== null) {
       const department = await this.teamRepository.findOne({
         where: { id: body.departmentId },
@@ -283,22 +322,116 @@ export class StaffService {
       if (!department) {
         throw new NotFoundException('Department not found');
       }
+      console.log(`✅ دپارتمان ${body.departmentId} پیدا شد:`, department.name);
     }
 
-    if (body.name !== undefined) staff.name = body.name;
-    if (body.code !== undefined) staff.code = body.code;
-    if (body.status !== undefined) staff.status = body.status;
-    if (body.role !== undefined) staff.role = body.role;
-    if (body.departmentId !== undefined) staff.departmentId = body.departmentId;
-    if (body.phone !== undefined) staff.phone = body.phone;
-    if (body.email !== undefined) staff.email = body.email;
-    if (body.isActive !== undefined) staff.isActive = body.isActive;
-    if (body.lastOnlineAt !== undefined) staff.lastOnlineAt = body.lastOnlineAt;
-    staff.updatedBy = userId;
+    // ✅ ساخت آبجکت به‌روزرسانی
+    const updateData: Partial<StaffEntity> = {};
 
-    const saved = await this.staffRepository.save(staff);
-    return this.findOne(saved.id);
+    if (body.name !== undefined) {
+      updateData.name = body.name;
+      console.log(`📝 تغییر نام به: ${body.name}`);
+    }
+    if (body.code !== undefined) {
+      updateData.code = body.code;
+      console.log(`📝 تغییر کد به: ${body.code}`);
+    }
+    if (body.status !== undefined) {
+      updateData.status = body.status;
+      console.log(`📝 تغییر وضعیت به: ${body.status}`);
+    }
+    if (body.role !== undefined) {
+      updateData.role = body.role;
+      console.log(`📝 تغییر نقش به: ${body.role}`);
+    }
+    if (body.departmentId !== undefined) {
+      updateData.departmentId = body.departmentId;
+      console.log(`📝 تغییر دپارتمان به: ${body.departmentId}`);
+    }
+    if (body.phone !== undefined) {
+      updateData.phone = body.phone;
+      console.log(`📝 تغییر شماره به: ${body.phone}`);
+    }
+    if (body.email !== undefined) {
+      updateData.email = body.email;
+      console.log(`📝 تغییر ایمیل به: ${body.email}`);
+    }
+    if (body.isActive !== undefined) {
+      updateData.isActive = body.isActive;
+      console.log(`📝 تغییر وضعیت isActive به: ${body.isActive}`);
+    }
+    if (body.lastOnlineAt !== undefined) {
+      updateData.lastOnlineAt = body.lastOnlineAt;
+      console.log(`📝 تغییر lastOnlineAt به: ${body.lastOnlineAt}`);
+    }
+
+    // ✅ به‌روزرسانی کاربر مرتبط (User)
+    if (body.name || body.phone || body.password) {
+      const user = await this.userRepository.findOne({
+        where: { id: staff.userId },
+      });
+
+      if (user) {
+        if (body.name) {
+          const nameParts = body.name.trim().split(' ');
+          user.firstName = nameParts[0] || body.name;
+          user.lastName = nameParts.slice(1).join(' ') || '';
+          console.log(
+            `📝 تغییر نام کاربر به: ${user.firstName} ${user.lastName}`,
+          );
+          await this.userRepository.save(user);
+        }
+
+        if (body.phone && body.phone !== user.mobile) {
+          const existingUser = await this.userRepository.findOne({
+            where: { mobile: body.phone },
+          });
+          if (existingUser && existingUser.id !== user.id) {
+            throw new BadRequestException('Mobile number already exists');
+          }
+          user.mobile = body.phone;
+          console.log(`📝 تغییر شماره کاربر به: ${body.phone}`);
+          await this.userRepository.save(user);
+        }
+
+        if (body.password) {
+          user.password = body.password;
+          console.log(`📝 تغییر رمز عبور کاربر`);
+          await this.userRepository.save(user);
+        }
+
+        console.log(`✅ کاربر ${user.id} به‌روزرسانی شد`);
+      }
+    }
+
+    // ✅ به‌روزرسانی Staff با استفاده از update (مستقیم)
+    if (Object.keys(updateData).length > 0) {
+      updateData.updatedBy = userId;
+
+      console.log(`📤 اجرای UPDATE روی Staff با id: ${id}`, updateData);
+
+      // ✅ استفاده از update به جای save
+      const updateResult = await this.staffRepository.update(id, updateData);
+
+      console.log(`✅ نتیجه UPDATE:`, updateResult);
+
+      // ✅ دوباره از دیتابیس بخوان
+      const result = await this.findOne(id);
+      console.log(`📤 نتیجه نهایی Staff ${id}:`, {
+        id: result.id,
+        name: result.name,
+        departmentId: result.departmentId,
+        phone: result.phone,
+        isActive: result.isActive,
+      });
+
+      return result;
+    }
+
+    // اگر چیزی برای به‌روزرسانی نبود
+    return staff;
   }
+  // ============================================================
 
   async delete(id: number, userId: number, userRole: UserRole) {
     const staff = await this.findOne(id);
@@ -318,7 +451,7 @@ export class StaffService {
 
   async findByDepartment(departmentId: number) {
     return await this.staffRepository.find({
-      where: { departmentId },
+      where: { departmentId, deletedAt: IsNull() },
       relations: {
         organization: true,
         user: true,
@@ -359,3 +492,4 @@ export class StaffService {
     return this.findOne(saved.id);
   }
 }
+// ============================================================

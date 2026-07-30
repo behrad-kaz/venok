@@ -32,35 +32,79 @@ export class WorkspaceEntity {
   @Column({ type: 'varchar', length: 50, default: 'active' })
   status: string;
 
+  // ============ اطلاعات شرکت ============
   @Column({ type: 'varchar', length: 20, nullable: true })
   phone: string;
 
   @Column({ type: 'varchar', length: 100, nullable: true })
   email: string;
 
-  @Column({ type: 'text', nullable: true })
-  address: string;
+  @Column({ type: 'varchar', nullable: true })
+  logo: string | null;
+
+  // ============ اطلاعات پشتیبانی ============
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  supportPhone: string | null;
 
   @Column({ type: 'varchar', length: 100, nullable: true })
-  city: string;
+  supportEmail: string | null;
 
   @Column({ type: 'varchar', length: 20, nullable: true })
-  postalCode: string;
+  alertPhone: string | null;
 
-  @Column({ type: 'decimal', precision: 10, scale: 8, nullable: true })
-  latitude: string;
+  @Column({ type: 'text', nullable: true })
+  introText: string | null;
 
-  @Column({ type: 'decimal', precision: 11, scale: 8, nullable: true })
-  longitude: string;
+  // ============ ساعات کاری ============
+  @Column({ type: 'jsonb', default: {} })
+  workingDays: {
+    saturday: boolean;
+    sunday: boolean;
+    monday: boolean;
+    tuesday: boolean;
+    wednesday: boolean;
+    thursday: boolean;
+    friday: boolean;
+  };
+
+  @Column({ type: 'varchar', length: 10, default: '09:00' })
+  workStartTime: string;
+
+  @Column({ type: 'varchar', length: 10, default: '18:00' })
+  workEndTime: string;
+
+  @Column({ type: 'text', nullable: true })
+  outOfHoursMessage: string | null;
+
+  // ============ اعلان‌ها ============
+  @Column({ type: 'boolean', default: true })
+  sendLinkSms: boolean;
+
+  @Column({ type: 'boolean', default: true })
+  sendOtpForPasswordChange: boolean;
+
+  @Column({ type: 'boolean', default: true })
+  notifyManagerForUnanswered: boolean;
+
+  @Column({ type: 'boolean', default: true })
+  notifyNewConversations: boolean;
+
+  // ============ امنیت ============
+  @Column({ type: 'boolean', default: true })
+  requireStrongPassword: boolean;
+
+  @Column({ type: 'boolean', default: true })
+  requirePhoneVerificationForPasswordChange: boolean;
+
+  @Column({ type: 'int', default: 60 })
+  autoLogoutMinutes: number;
+
 
   @Column({ type: 'varchar', length: 50, default: 'Asia/Tehran' })
   timezone: string;
 
   @Column({ type: 'varchar', length: 10, default: 'fa-IR' })
   locale: string;
-
-  @Column({ type: 'varchar', nullable: true })
-  logo: string | null; // ← اضافه شد
 
   @ManyToOne(() => OrganizationEntity, (organization) => organization.workspaces)
   @JoinColumn({ name: 'organizationId' })

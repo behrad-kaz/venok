@@ -1,3 +1,6 @@
+// ============================================================
+// FILE: src/staff/controllers/staff.controller.ts
+// ============================================================
 import {
   Body,
   Controller,
@@ -6,6 +9,7 @@ import {
   Param,
   Post,
   Put,
+  Patch,
   Query,
   ParseIntPipe,
   UseGuards,
@@ -131,29 +135,43 @@ export class StaffController {
     }
   }
 
+  // ✅ PUT - به‌روزرسانی کامل
   @Put(':id')
-  @ApiOperation({ summary: 'به‌روزرسانی کارمند' })
+  @ApiOperation({ summary: 'به‌روزرسانی کامل کارمند' })
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: UpdateStaffDto,
     @CurrentUser() currentUser: any,
   ) {
+    console.log(`📤 PUT /staff/${id}`, body);
     return this.staffService.update(id, body, currentUser.id, currentUser.role);
   }
 
-  @Put(':id/department')
-  @ApiOperation({ summary: 'تغییر دپارتمان کارمند' })
-  changeDepartment(
+  // ✅ PATCH - به‌روزرسانی جزئی
+  @Patch(':id')
+  @ApiOperation({ summary: 'به‌روزرسانی جزئی کارمند' })
+  async patch(
     @Param('id', ParseIntPipe) id: number,
-    @Body('departmentId', ParseIntPipe) departmentId: number,
+    @Body() body: UpdateStaffDto,
     @CurrentUser() currentUser: any,
   ) {
-    return this.staffService.changeDepartment(
+    console.log(
+      `📤 PATCH /staff/${id} - داده‌های دریافتی:`,
+      JSON.stringify(body, null, 2),
+    );
+
+    const result = await this.staffService.update(
       id,
-      departmentId,
+      body,
       currentUser.id,
       currentUser.role,
     );
+
+    console.log(
+      `✅ نتیجه PATCH /staff/${id}:`,
+      JSON.stringify(result, null, 2),
+    );
+    return result;
   }
 
   @Delete(':id')
@@ -166,3 +184,4 @@ export class StaffController {
     return this.staffService.delete(id, currentUser.id, currentUser.role);
   }
 }
+// ============================================================

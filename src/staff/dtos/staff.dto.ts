@@ -1,3 +1,6 @@
+// ============================================================
+// FILE: src/staff/dtos/staff.dto.ts
+// ============================================================
 import {
   IsNotEmpty,
   IsString,
@@ -8,6 +11,7 @@ import {
   IsEnum,
   Matches,
   IsBoolean,
+  MinLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { StaffStatus, StaffRole } from '../entities/staff.entity';
@@ -25,12 +29,18 @@ export class CreateStaffDto {
   @MaxLength(50, { message: 'کد حداکثر ۵۰ کاراکتر باید باشد' })
   code: string;
 
-  @ApiPropertyOptional({ description: 'شماره تماس', example: '09123456789' })
-  @IsOptional()
+  @ApiProperty({ description: 'شماره تماس (برای ورود)', example: '09123456789' })
   @IsString()
+  @IsNotEmpty({ message: 'شماره تماس نباید خالی باشد' })
   @MaxLength(20)
   @Matches(/^09[0-9]{9}$/, { message: 'شماره تماس نامعتبر است' })
-  phone?: string;
+  phone: string;
+
+  @ApiProperty({ description: 'رمز عبور اولیه (حداقل ۸ کاراکتر)', example: '12345678' })
+  @IsString()
+  @IsNotEmpty({ message: 'رمز عبور نباید خالی باشد' })
+  @MinLength(8, { message: 'رمز عبور حداقل ۸ کاراکتر باید باشد' })
+  password: string;
 
   @ApiPropertyOptional({ description: 'ایمیل', example: 'ali@example.com' })
   @IsOptional()
@@ -96,7 +106,14 @@ export class UpdateStaffDto {
   @IsOptional()
   @IsString()
   @MaxLength(20)
+  @Matches(/^09[0-9]{9}$/, { message: 'شماره تماس نامعتبر است' })
   phone?: string;
+
+  @ApiPropertyOptional({ description: 'رمز عبور جدید (اختیاری - برای تغییر)' })
+  @IsOptional()
+  @IsString()
+  @MinLength(8, { message: 'رمز عبور حداقل ۸ کاراکتر باید باشد' })
+  password?: string;
 
   @ApiPropertyOptional({ description: 'ایمیل' })
   @IsOptional()
@@ -113,3 +130,4 @@ export class UpdateStaffDto {
   @IsOptional()
   lastOnlineAt?: Date;
 }
+// ============================================================

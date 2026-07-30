@@ -1,3 +1,6 @@
+// ============================================================
+// FILE: src/widget/controllers/widget.controller.ts
+// ============================================================
 import {
   Body,
   Controller,
@@ -5,6 +8,7 @@ import {
   Patch,
   Post,
   UseGuards,
+  NotFoundException,  // ✅ اضافه شد
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,32 +22,55 @@ import { UserRole } from '../../user/entities/user.entity';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { Public } from '../../shared/decorators/public.decorator';
+import { WorkspaceService } from '../../workspace/services/workspace.service';
 
 @ApiTags('widget')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard)
 @Controller('widget')
 export class WidgetController {
-  constructor(private readonly widgetService: WidgetService) {}
+  constructor(
+    private readonly widgetService: WidgetService,
+    private readonly workspaceService: WorkspaceService,
+  ) {}
 
   @Get('current')
   @ApiOperation({ summary: 'دریافت تنظیمات ویجت جاری' })
-  getCurrent(@CurrentUser() currentUser: any) {
-    // TODO: workspaceId از context بگیر
-    const workspaceId = 1;
-    return this.widgetService.getCurrentWidget(workspaceId);
+  async getCurrent(@CurrentUser() currentUser: any) {
+    // ✅ دریافت workspaceId از کاربر جاری
+    const workspace = await this.workspaceService.getCurrentWorkspaceByUser(
+      currentUser.id,
+    );
+    
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found for this user');
+    }
+    
+    return this.widgetService.getCurrentWidget(workspace.id);
   }
 
   @Patch()
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'به‌روزرسانی تنظیمات ویجت (فقط ادمین)' })
-  update(
+  async update(
     @Body() body: UpdateWidgetDto,
     @CurrentUser() currentUser: any,
   ) {
-    // TODO: workspaceId از context بگیر
-    const workspaceId = 1;
-    return this.widgetService.updateWidget(workspaceId, body, currentUser.id, currentUser.role);
+    // ✅ دریافت workspaceId از کاربر جاری
+    const workspace = await this.workspaceService.getCurrentWorkspaceByUser(
+      currentUser.id,
+    );
+    
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found for this user');
+    }
+    
+    return this.widgetService.updateWidget(
+      workspace.id, 
+      body, 
+      currentUser.id, 
+      currentUser.role
+    );
   }
 
   @Public()
@@ -60,3 +87,4 @@ export class WidgetController {
     return this.widgetService.getWidgetScript(workspaceId);
   }
 }
+// ============================================================

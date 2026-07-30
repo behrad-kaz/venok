@@ -42,8 +42,6 @@ import { Public } from '../../shared/decorators/public.decorator';
 export class OrganizationController {
   constructor(private readonly organizationService: OrganizationService) {}
 
-  // ✅ مسیرهای خاص باید قبل از مسیرهای عمومی با :id قرار بگیرند
-
   @Get()
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'دریافت لیست سازمان‌ها (فقط ادمین)' })
@@ -83,11 +81,9 @@ export class OrganizationController {
     return this.organizationService.findByUser(currentUser.id);
   }
 
-  // ✅ by-user باید قبل از :id قرار بگیرد
   @Get('by-user')
   @ApiOperation({ summary: 'دریافت سازمان کاربر جاری' })
   async getOrganizationByUser(@CurrentUser() currentUser: any) {
-    // ✅ اگر کاربر organizationId دارد، آن را برگردان
     if (currentUser.organizationId) {
       const organization = await this.organizationService.findOne(
         currentUser.organizationId,
@@ -98,7 +94,6 @@ export class OrganizationController {
       }
     }
 
-    // ✅ اگر کاربر organizationId ندارد، از متد getOrganizationByUser استفاده کن
     const organization = await this.organizationService.getOrganizationByUser(
       currentUser.id,
     );

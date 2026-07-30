@@ -7,6 +7,8 @@ import {
   MaxLength,
   IsEnum,
   Matches,
+  IsBoolean,
+  IsObject,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -14,6 +16,36 @@ export enum WorkspaceStatus {
   ACTIVE = 'active',
   INACTIVE = 'inactive',
   SUSPENDED = 'suspended',
+}
+
+export class WorkingDaysDto {
+  @IsOptional()
+  @IsBoolean()
+  saturday?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  sunday?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  monday?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  tuesday?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  wednesday?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  thursday?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  friday?: boolean;
 }
 
 export class CreateWorkspaceDto {
@@ -44,6 +76,7 @@ export class CreateWorkspaceDto {
   @Min(1)
   managerStaffId?: number;
 
+  // ============ اطلاعات شرکت ============
   @ApiPropertyOptional({ description: 'شماره تماس', example: '02112345678' })
   @IsOptional()
   @IsString()
@@ -56,22 +89,96 @@ export class CreateWorkspaceDto {
   @MaxLength(100)
   email?: string;
 
-  @ApiPropertyOptional({ description: 'آدرس', example: 'تهران، خیابان ولیعصر' })
+  @ApiPropertyOptional({ description: 'لوگو', example: '/files/workspaces-logo/logo.png' })
   @IsOptional()
   @IsString()
-  address?: string;
+  logo?: string;
 
-  @ApiPropertyOptional({ description: 'شهر', example: 'تهران' })
-  @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  city?: string;
-
-  @ApiPropertyOptional({ description: 'کد پستی', example: '1234567890' })
+  // ============ اطلاعات پشتیبانی ============
+  @ApiPropertyOptional({ description: 'شماره تماس پشتیبانی', example: '02112345678' })
   @IsOptional()
   @IsString()
   @MaxLength(20)
-  postalCode?: string;
+  supportPhone?: string;
+
+  @ApiPropertyOptional({ description: 'ایمیل پشتیبانی', example: 'support@workspace.com' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  supportEmail?: string;
+
+  @ApiPropertyOptional({ description: 'شماره همراه اصلی برای هشدارهای مدیریتی', example: '09123456789' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  alertPhone?: string;
+
+  @ApiPropertyOptional({ description: 'متن کوتاه معرفی پشتیبانی' })
+  @IsOptional()
+  @IsString()
+  introText?: string;
+
+  // ============ ساعات کاری ============
+  @ApiPropertyOptional({ description: 'روزهای کاری' })
+  @IsOptional()
+  @IsObject()
+  workingDays?: WorkingDaysDto;
+
+  @ApiPropertyOptional({ description: 'ساعت شروع پاسخگویی', example: '09:00' })
+  @IsOptional()
+  @IsString()
+  workStartTime?: string;
+
+  @ApiPropertyOptional({ description: 'ساعت پایان پاسخگویی', example: '18:00' })
+  @IsOptional()
+  @IsString()
+  workEndTime?: string;
+
+  @ApiPropertyOptional({ description: 'پیام عمومی خارج از ساعات کاری' })
+  @IsOptional()
+  @IsString()
+  outOfHoursMessage?: string;
+
+  // ============ اعلان‌ها ============
+  @ApiPropertyOptional({ description: 'ارسال پیامک لینک گفتگو', default: true })
+  @IsOptional()
+  @IsBoolean()
+  sendLinkSms?: boolean;
+
+  @ApiPropertyOptional({ description: 'ارسال OTP برای تغییر رمز', default: true })
+  @IsOptional()
+  @IsBoolean()
+  sendOtpForPasswordChange?: boolean;
+
+  @ApiPropertyOptional({ description: 'اطلاع‌رسانی گفتگوهای بدون پاسخ به مدیرکل', default: true })
+  @IsOptional()
+  @IsBoolean()
+  notifyManagerForUnanswered?: boolean;
+
+  @ApiPropertyOptional({ description: 'اعلان گفتگوهای جدید', default: true })
+  @IsOptional()
+  @IsBoolean()
+  notifyNewConversations?: boolean;
+
+  // ============ امنیت ============
+  @ApiPropertyOptional({ description: 'الزام رمز قوی برای اعضا', default: true })
+  @IsOptional()
+  @IsBoolean()
+  requireStrongPassword?: boolean;
+
+  @ApiPropertyOptional({ description: 'فعال‌سازی تایید شماره همراه برای تغییر رمز', default: true })
+  @IsOptional()
+  @IsBoolean()
+  requirePhoneVerificationForPasswordChange?: boolean;
+
+  @ApiPropertyOptional({ description: 'خروج خودکار بعد از مدت مشخص (دقیقه)', default: 60 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  autoLogoutMinutes?: number;
+
+  // ============ فیلدهای حذف شده ============
+  // address, city, postalCode, latitude, longitude - حذف شدند
 
   @ApiPropertyOptional({ description: 'منطقه زمانی', default: 'Asia/Tehran' })
   @IsOptional()
@@ -84,14 +191,6 @@ export class CreateWorkspaceDto {
   @IsString()
   @MaxLength(10)
   locale?: string;
-
-  @ApiPropertyOptional({
-    description: 'لوگو',
-    example: '/files/workspaces-logo/logo.png',
-  })
-  @IsOptional()
-  @IsString()
-  logo?: string;
 }
 
 export class UpdateWorkspaceDto {
@@ -127,6 +226,7 @@ export class UpdateWorkspaceDto {
   @Min(1)
   managerStaffId?: number;
 
+  // ============ اطلاعات شرکت ============
   @ApiPropertyOptional({ description: 'شماره تماس' })
   @IsOptional()
   @IsString()
@@ -139,22 +239,96 @@ export class UpdateWorkspaceDto {
   @MaxLength(100)
   email?: string;
 
-  @ApiPropertyOptional({ description: 'آدرس' })
+  @ApiPropertyOptional({ description: 'لوگو' })
   @IsOptional()
   @IsString()
-  address?: string;
+  logo?: string;
 
-  @ApiPropertyOptional({ description: 'شهر' })
-  @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  city?: string;
-
-  @ApiPropertyOptional({ description: 'کد پستی' })
+  // ============ اطلاعات پشتیبانی ============
+  @ApiPropertyOptional({ description: 'شماره تماس پشتیبانی' })
   @IsOptional()
   @IsString()
   @MaxLength(20)
-  postalCode?: string;
+  supportPhone?: string;
+
+  @ApiPropertyOptional({ description: 'ایمیل پشتیبانی' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  supportEmail?: string;
+
+  @ApiPropertyOptional({ description: 'شماره همراه اصلی برای هشدارهای مدیریتی' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  alertPhone?: string;
+
+  @ApiPropertyOptional({ description: 'متن کوتاه معرفی پشتیبانی' })
+  @IsOptional()
+  @IsString()
+  introText?: string;
+
+  // ============ ساعات کاری ============
+  @ApiPropertyOptional({ description: 'روزهای کاری' })
+  @IsOptional()
+  @IsObject()
+  workingDays?: WorkingDaysDto;
+
+  @ApiPropertyOptional({ description: 'ساعت شروع پاسخگویی' })
+  @IsOptional()
+  @IsString()
+  workStartTime?: string;
+
+  @ApiPropertyOptional({ description: 'ساعت پایان پاسخگویی' })
+  @IsOptional()
+  @IsString()
+  workEndTime?: string;
+
+  @ApiPropertyOptional({ description: 'پیام عمومی خارج از ساعات کاری' })
+  @IsOptional()
+  @IsString()
+  outOfHoursMessage?: string;
+
+  // ============ اعلان‌ها ============
+  @ApiPropertyOptional({ description: 'ارسال پیامک لینک گفتگو' })
+  @IsOptional()
+  @IsBoolean()
+  sendLinkSms?: boolean;
+
+  @ApiPropertyOptional({ description: 'ارسال OTP برای تغییر رمز' })
+  @IsOptional()
+  @IsBoolean()
+  sendOtpForPasswordChange?: boolean;
+
+  @ApiPropertyOptional({ description: 'اطلاع‌رسانی گفتگوهای بدون پاسخ به مدیرکل' })
+  @IsOptional()
+  @IsBoolean()
+  notifyManagerForUnanswered?: boolean;
+
+  @ApiPropertyOptional({ description: 'اعلان گفتگوهای جدید' })
+  @IsOptional()
+  @IsBoolean()
+  notifyNewConversations?: boolean;
+
+  // ============ امنیت ============
+  @ApiPropertyOptional({ description: 'الزام رمز قوی برای اعضا' })
+  @IsOptional()
+  @IsBoolean()
+  requireStrongPassword?: boolean;
+
+  @ApiPropertyOptional({ description: 'فعال‌سازی تایید شماره همراه برای تغییر رمز' })
+  @IsOptional()
+  @IsBoolean()
+  requirePhoneVerificationForPasswordChange?: boolean;
+
+  @ApiPropertyOptional({ description: 'خروج خودکار بعد از مدت مشخص (دقیقه)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  autoLogoutMinutes?: number;
+
+  // ============ فیلدهای حذف شده ============
+  // address, city, postalCode, latitude, longitude - حذف شدند
 
   @ApiPropertyOptional({ description: 'منطقه زمانی' })
   @IsOptional()
@@ -167,14 +341,6 @@ export class UpdateWorkspaceDto {
   @IsString()
   @MaxLength(10)
   locale?: string;
-
-  @ApiPropertyOptional({
-    description: 'لوگو',
-    example: '/files/workspaces-logo/logo.png',
-  })
-  @IsOptional()
-  @IsString()
-  logo?: string;
 }
 
 export class WorkspaceResponseDto {
@@ -185,16 +351,45 @@ export class WorkspaceResponseDto {
   code: string;
   slug: string;
   status: string;
+
+  // اطلاعات شرکت
   phone: string | null;
   email: string | null;
-  address: string | null;
-  city: string | null;
-  postalCode: string | null;
-  latitude: string | null;
-  longitude: string | null;
+  logo: string | null;
+
+  // اطلاعات پشتیبانی
+  supportPhone: string | null;
+  supportEmail: string | null;
+  alertPhone: string | null;
+  introText: string | null;
+
+  // ساعات کاری
+  workingDays: {
+    saturday: boolean;
+    sunday: boolean;
+    monday: boolean;
+    tuesday: boolean;
+    wednesday: boolean;
+    thursday: boolean;
+    friday: boolean;
+  };
+  workStartTime: string;
+  workEndTime: string;
+  outOfHoursMessage: string | null;
+
+  // اعلان‌ها
+  sendLinkSms: boolean;
+  sendOtpForPasswordChange: boolean;
+  notifyManagerForUnanswered: boolean;
+  notifyNewConversations: boolean;
+
+  // امنیت
+  requireStrongPassword: boolean;
+  requirePhoneVerificationForPasswordChange: boolean;
+  autoLogoutMinutes: number;
+
   timezone: string;
   locale: string;
-  logo: string | null;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
