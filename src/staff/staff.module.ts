@@ -21,6 +21,6 @@ import { WorkspaceEntity } from '../workspace/entities/workspace.entity';
   ],
   controllers: [StaffController],
   providers: [StaffService, WorkspaceService],
-  exports: [StaffService],
+  exports: [StaffService, TypeOrmModule],
 })
 export class StaffModule {}

@@ -8,7 +8,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In, IsNull } from 'typeorm';  // ✅ IsNull اضافه شد
+import { Repository, In, IsNull } from 'typeorm';
 import { WidgetEntity } from '../entities/widget.entity';
 import { CreateWidgetDto, UpdateWidgetDto } from '../dtos/widget.dto';
 import { WorkspaceEntity } from '../../workspace/entities/workspace.entity';
@@ -32,9 +32,9 @@ export class WidgetService {
   }
 
   async getCurrentWidget(workspaceId: number) {
-    // ✅ بررسی وجود workspace
+    // ✅ بررسی وجود workspace با استفاده از IsNull
     const workspace = await this.workspaceRepository.findOne({
-      where: { id: workspaceId },
+      where: { id: workspaceId, deletedAt: IsNull() },
     });
 
     if (!workspace) {
@@ -76,7 +76,7 @@ export class WidgetService {
     const departments = await this.teamRepository.find({
       where: {
         isActive: true,
-        deletedAt: IsNull(),  // ✅ اصلاح شد
+        deletedAt: IsNull(),
       },
       select: {
         id: true,
@@ -93,7 +93,12 @@ export class WidgetService {
     };
   }
 
-  async updateWidget(workspaceId: number, body: UpdateWidgetDto, userId: number, userRole: UserRole) {
+  async updateWidget(
+    workspaceId: number,
+    body: UpdateWidgetDto,
+    userId: number,
+    userRole: UserRole,
+  ) {
     // فقط ادمین می‌تواند ویجت را ویرایش کند
     if (userRole !== UserRole.ADMIN) {
       throw new ForbiddenException('Only admins can update widget settings');
@@ -110,21 +115,32 @@ export class WidgetService {
     // به‌روزرسانی فیلدها
     if (body.companyName !== undefined) widget.companyName = body.companyName;
     if (body.logoUrl !== undefined) widget.logoUrl = body.logoUrl;
-    if (body.primaryColor !== undefined) widget.primaryColor = body.primaryColor;
-    if (body.buttonPosition !== undefined) widget.buttonPosition = body.buttonPosition;
+    if (body.primaryColor !== undefined)
+      widget.primaryColor = body.primaryColor;
+    if (body.buttonPosition !== undefined)
+      widget.buttonPosition = body.buttonPosition;
     if (body.buttonSize !== undefined) widget.buttonSize = body.buttonSize;
     if (body.formTitle !== undefined) widget.formTitle = body.formTitle;
-    if (body.formDescription !== undefined) widget.formDescription = body.formDescription;
-    if (body.phonePlaceholder !== undefined) widget.phonePlaceholder = body.phonePlaceholder;
-    if (body.submitButtonText !== undefined) widget.submitButtonText = body.submitButtonText;
-    if (body.successMessage !== undefined) widget.successMessage = body.successMessage;
+    if (body.formDescription !== undefined)
+      widget.formDescription = body.formDescription;
+    if (body.phonePlaceholder !== undefined)
+      widget.phonePlaceholder = body.phonePlaceholder;
+    if (body.submitButtonText !== undefined)
+      widget.submitButtonText = body.submitButtonText;
+    if (body.successMessage !== undefined)
+      widget.successMessage = body.successMessage;
     if (body.privacyText !== undefined) widget.privacyText = body.privacyText;
-    if (body.showDepartmentSelect !== undefined) widget.showDepartmentSelect = body.showDepartmentSelect;
-    if (body.showDescriptionField !== undefined) widget.showDescriptionField = body.showDescriptionField;
-    if (body.descriptionRequired !== undefined) widget.descriptionRequired = body.descriptionRequired;
+    if (body.showDepartmentSelect !== undefined)
+      widget.showDepartmentSelect = body.showDepartmentSelect;
+    if (body.showDescriptionField !== undefined)
+      widget.showDescriptionField = body.showDescriptionField;
+    if (body.descriptionRequired !== undefined)
+      widget.descriptionRequired = body.descriptionRequired;
     if (body.isActive !== undefined) widget.isActive = body.isActive;
-    if (body.allowedDomains !== undefined) widget.allowedDomains = body.allowedDomains;
-    if (body.supportTeamIds !== undefined) widget.supportTeamIds = body.supportTeamIds;
+    if (body.allowedDomains !== undefined)
+      widget.allowedDomains = body.allowedDomains;
+    if (body.supportTeamIds !== undefined)
+      widget.supportTeamIds = body.supportTeamIds;
 
     widget.updatedBy = userId;
 
@@ -132,13 +148,13 @@ export class WidgetService {
 
     // دریافت اطلاعات دپارتمان‌ها
     let departments: SupportTeamEntity[] = [];
-    
+
     if (saved.supportTeamIds && saved.supportTeamIds.length > 0) {
       departments = await this.teamRepository.find({
         where: {
           id: In(saved.supportTeamIds),
           isActive: true,
-          deletedAt: IsNull(),  // ✅ اصلاح شد
+          deletedAt: IsNull(),
         },
         select: {
           id: true,
@@ -165,7 +181,6 @@ export class WidgetService {
       throw new NotFoundException('Widget not found');
     }
 
-    // کد جاوااسکریپت ویجت
     const script = `
 <script>
   (function() {
@@ -188,7 +203,6 @@ export class WidgetService {
       isActive: ${widget.isActive}
     };
     
-    // بارگذاری اسکریپت ویجت
     const script = document.createElement('script');
     script.src = 'https://chat.example.com/widget.js';
     script.dataset.config = JSON.stringify(widgetConfig);

@@ -50,7 +50,14 @@ export class MessageEntity {
   readAt: Date | null;
 
   @Column({ type: 'int', nullable: true })
-  createdBy: number;
+  createdBy: number | null;
+
+  // ✅ فیلدهای جدید برای پشتیبانی از فایل
+  @Column({ type: 'text', nullable: true })
+  fileUrl: string | null;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  fileType: string | null; // 'image', 'document', 'video', 'audio'
 
   @ManyToOne(() => ConversationEntity, (conversation) => conversation.messages)
   @JoinColumn({ name: 'conversationId' })

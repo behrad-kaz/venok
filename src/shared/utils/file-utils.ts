@@ -25,62 +25,83 @@ export const saveImage = async (
 
     console.log(`💾 Saving file: ${filePath}`);
 
-    let sharpInstance = sharp(file.buffer);
+    // ✅ بررسی نوع فایل
+    const isImage = file.mimetype.startsWith('image/');
 
-    if (body.width || body.height) {
-      const width = body.width || null;
-      const height = body.height || null;
+    if (isImage) {
+      // ✅ پردازش تصویر با Sharp
+      let sharpInstance = sharp(file.buffer);
 
-      sharpInstance = sharpInstance.resize(width, height, {
-        fit: 'cover',
-        position: 'center',
-        withoutEnlargement: true,
-      });
+      if (body.width || body.height) {
+        const width = body.width || null;
+        const height = body.height || null;
+        sharpInstance = sharpInstance.resize(width, height, {
+          fit: 'cover',
+          position: 'center',
+          withoutEnlargement: true,
+        });
+      } else {
+        sharpInstance = sharpInstance.resize(800, 800, {
+          fit: 'inside',
+          withoutEnlargement: true,
+        });
+      }
+
+      await sharpInstance.toFile(filePath);
+      const metadata = await sharp(filePath).metadata();
+
+      const relativePath = body.folder
+        ? `/files/${body.folder}/${filename}`
+        : `/files/${filename}`;
+
+      return {
+        success: true,
+        filename,
+        filePath: relativePath,
+        fullPath: filePath,
+        originalName: file.originalname,
+        size: file.size,
+        mimetype: file.mimetype,
+        folder: body.folder || 'files',
+        width: metadata.width,
+        height: metadata.height,
+      };
     } else {
-      sharpInstance = sharpInstance.resize(800, 800, {
-        fit: 'inside',
-        withoutEnlargement: true,
-      });
+      // ✅ ذخیره مستقیم فایل (غیرتصویری)
+      await fs.promises.writeFile(filePath, file.buffer);
+
+      const relativePath = body.folder
+        ? `/files/${body.folder}/${filename}`
+        : `/files/${filename}`;
+
+      return {
+        success: true,
+        filename,
+        filePath: relativePath,
+        fullPath: filePath,
+        originalName: file.originalname,
+        size: file.size,
+        mimetype: file.mimetype,
+        folder: body.folder || 'files',
+        width: null,
+        height: null,
+      };
     }
-
-    await sharpInstance.toFile(filePath);
-
-    const metadata = await sharp(filePath).metadata();
-
-    // مسیر نسبی برای دیتابیس
-    const relativePath = body.folder
-      ? `/files/${body.folder}/${filename}`
-      : `/files/${filename}`;
-
-    return {
-      success: true,
-      filename,
-      filePath: relativePath,  // ← مسیر نسبی
-      fullPath: filePath,      // ← مسیر کامل
-      originalName: file.originalname,
-      size: file.size,
-      mimetype: file.mimetype,
-      folder: body.folder || 'files',
-      width: metadata.width,
-      height: metadata.height,
-    };
   } catch (error) {
-    console.error('Error saving image:', error);
-    throw new Error(`Error saving image: ${error.message}`);
+    console.error('❌ Error saving file:', error);
+    throw new Error(`Error saving file: ${error.message}`);
   }
 };
 
 // ✅ تابع حذف فایل با پشتیبانی از fileName و folder
 export const deleteImage = async (fileName: string, folder: string = '') => {
   try {
-    // ساخت مسیر کامل فایل
     const filePath = folder
       ? path.join(process.cwd(), 'files', folder, fileName)
       : path.join(process.cwd(), 'files', fileName);
 
     console.log(`🗑️ Deleting file: ${filePath}`);
 
-    // بررسی وجود فایل
     if (fs.existsSync(filePath)) {
       await fs.promises.unlink(filePath);
       console.log(`✅ File deleted successfully: ${fileName}`);
@@ -115,18 +136,12 @@ export const deleteImageByPath = async (imagePath: string) => {
     
     let fullPath = '';
 
-    // اگر مسیر با /files/ شروع می‌شود (مسیر نسبی)
     if (imagePath.startsWith('/files/')) {
       const relativePath = imagePath.replace('/files/', '');
       fullPath = path.join(process.cwd(), 'files', relativePath);
-    }
-    // اگر مسیر کامل است (با C:\ یا / شروع می‌شود)
-    else if (imagePath.includes(':') || imagePath.startsWith('/')) {
+    } else if (imagePath.includes(':') || imagePath.startsWith('/')) {
       fullPath = imagePath;
-    }
-    // اگر فقط نام فایل است
-    else {
-      // جستجو در همه پوشه‌های files
+    } else {
       const filesDir = path.join(process.cwd(), 'files');
       if (fs.existsSync(filesDir)) {
         const folders = fs.readdirSync(filesDir);
@@ -175,7 +190,6 @@ export const deleteImageByPath = async (imagePath: string) => {
   }
 };
 
-// ✅ تابع برای حذف چندین فایل
 export const deleteMultipleImages = async (imagePaths: string[]) => {
   try {
     const results = await Promise.all(
@@ -191,7 +205,6 @@ export const deleteMultipleImages = async (imagePaths: string[]) => {
   }
 };
 
-// ✅ تابع برای استخراج fileName و folder از مسیر
 export const extractFileInfo = (filePath: string) => {
   if (!filePath) {
     return { fileName: '', folder: '' };

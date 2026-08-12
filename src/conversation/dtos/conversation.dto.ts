@@ -30,9 +30,10 @@ export class CreateConversationDto {
   @MaxLength(200, { message: 'موضوع حداکثر ۲۰۰ کاراکتر باید باشد' })
   subject: string;
 
-  @ApiPropertyOptional({ description: 'شناسه دپارتمان (UUID)', example: '550e8400-e29b-41d4-a716-446655440000' })
+  @ApiPropertyOptional({ description: 'شناسه دپارتمان', example: 1 })
   @IsOptional()
-  @IsString()
+  @IsNumber()
+  @Min(1)
   teamId?: number;
 
   @ApiPropertyOptional({
@@ -65,9 +66,10 @@ export class UpdateConversationDto {
   @IsEnum(ConversationPriority)
   priority?: ConversationPriority;
 
-  @ApiPropertyOptional({ description: 'شناسه دپارتمان (UUID)', example: '550e8400-e29b-41d4-a716-446655440000' })
+  @ApiPropertyOptional({ description: 'شناسه دپارتمان', example: 1 })
   @IsOptional()
-  @IsString()
+  @IsNumber()
+  @Min(1)
   teamId?: number;
 
   @ApiPropertyOptional({ description: 'شناسه اپراتور مسئول' })
@@ -86,7 +88,7 @@ export class UpdateConversationDto {
 export class ConversationResponseDto {
   id: number;
   workspaceId: number;
-  teamId: string | null;
+  teamId: number | null;
   agentId: number | null;
   customerName: string;
   customerPhone: string;
@@ -103,7 +105,7 @@ export class ConversationResponseDto {
   updatedAt: Date;
   deletedAt: Date | null;
   team?: {
-    id: string;
+    id: number;
     name: string;
   };
   agent?: {

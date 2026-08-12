@@ -55,10 +55,20 @@ export class WorkspaceController {
     return this.workspaceService.findAll(queryParams);
   }
 
+  // ✅ اصلاح شده: دریافت workspace جاری
   @Get('current')
   @ApiOperation({ summary: 'دریافت workspace جاری' })
-  getCurrent(@CurrentUser() currentUser: any) {
-    return this.workspaceService.getCurrentWorkspace(currentUser.id);
+  async getCurrent(@CurrentUser() currentUser: any) {
+    try {
+      return await this.workspaceService.getCurrentWorkspaceByUser(currentUser.id);
+    } catch (error) {
+      // اگر خطا رخ داد، اولین workspace موجود را برگردان
+      const defaultWorkspace = await this.workspaceService.getDefaultWorkspace();
+      if (defaultWorkspace) {
+        return defaultWorkspace;
+      }
+      throw new NotFoundException('No workspace found');
+    }
   }
 
   @Public()

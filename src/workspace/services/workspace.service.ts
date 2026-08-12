@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like } from 'typeorm';
+import { Repository, Like, IsNull } from 'typeorm';
 import { WorkspaceEntity } from '../entities/workspace.entity';
 import { CreateWorkspaceDto, UpdateWorkspaceDto } from '../dtos/workspace.dto';
 import { WorkspaceQueryDto } from '../dtos/workspace-query.dto';
@@ -22,6 +22,16 @@ export class WorkspaceService {
     @InjectRepository(UserEntity)
     private userRepository: Repository<UserEntity>,
   ) {}
+
+  // ✅ متد جدید: دریافت اولین workspace موجود (برای دسترسی عمومی)
+  async getDefaultWorkspace(): Promise<WorkspaceEntity | null> {
+    const workspace = await this.workspaceRepository.findOne({
+      where: { deletedAt: IsNull() },
+      order: { id: 'ASC' },
+    });
+
+    return workspace || null;
+  }
 
   async findAll(queryParams: WorkspaceQueryDto, organizationId?: number) {
     const page = queryParams.page || 1;
@@ -127,9 +137,9 @@ export class WorkspaceService {
     return workspaces[0];
   }
 
-  // ✅ متد جدید: دریافت workspace جاری کاربر بر اساس userId
+  // ✅ متد اصلاح شده: دریافت workspace جاری کاربر
   async getCurrentWorkspaceByUser(userId: number) {
-    // 1. پیدا کردن کاربر و سازمانش
+    // 1️⃣ پیدا کردن کاربر
     const user = await this.userRepository.findOne({
       where: { id: userId },
     });
@@ -138,21 +148,31 @@ export class WorkspaceService {
       throw new NotFoundException('User not found');
     }
 
-    if (!user.organizationId) {
-      throw new NotFoundException('User has no organization');
+    // 2️⃣ اگر کاربر organizationId دارد، از آن استفاده کن
+    if (user.organizationId) {
+      const workspace = await this.workspaceRepository.findOne({
+        where: { organizationId: user.organizationId },
+        order: { createdAt: 'ASC' },
+      });
+
+      if (workspace) {
+        return workspace;
+      }
     }
 
-    // 2. پیدا کردن اولین workspace سازمان
-    const workspace = await this.workspaceRepository.findOne({
-      where: { organizationId: user.organizationId },
-      order: { createdAt: 'ASC' },
-    });
-
-    if (!workspace) {
-      throw new NotFoundException('No workspace found for this organization');
+    // 3️⃣ اگر کاربر ADMIN است و organizationId ندارد
+    //    یا اگر organizationId دارد ولی workspace ندارد
+    //    ➡️ اولین workspace موجود را برگردان
+    if (user.role === UserRole.ADMIN) {
+      const defaultWorkspace = await this.getDefaultWorkspace();
+      if (defaultWorkspace) {
+        console.log(`✅ Admin ${userId} using default workspace: ${defaultWorkspace.id}`);
+        return defaultWorkspace;
+      }
     }
 
-    return workspace;
+    // 4️⃣ اگر هیچ workspace ای پیدا نشد
+    throw new NotFoundException('No workspace found for this user');
   }
 
   async create(

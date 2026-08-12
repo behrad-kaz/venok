@@ -52,6 +52,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       firstName: payload.firstName,
       lastName: payload.lastName,
       organizationId: user.organizationId,
+      staffId: payload.staffId || null, // ✅ اضافه شد
+      staffRole: payload.staffRole || null, // ✅ اضافه شد
     };
   }
 }

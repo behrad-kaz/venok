@@ -1,3 +1,4 @@
+// src/conversation/entities/conversation.entity.ts
 import {
   Entity,
   Column,
@@ -12,6 +13,7 @@ import { WorkspaceEntity } from '../../workspace/entities/workspace.entity';
 import { SupportTeamEntity } from '../../support/entities/support-team.entity';
 import { StaffEntity } from '../../staff/entities/staff.entity';
 import { MessageEntity } from './message.entity';
+import { CustomerEntity } from '../../customer/entities/customer.entity';
 
 export enum ConversationStatus {
   OPEN = 'open',
@@ -39,11 +41,14 @@ export class ConversationEntity {
   @Column({ type: 'int' })
   workspaceId: number;
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ type: 'int', nullable: true })
   teamId: number | null;
 
   @Column({ type: 'int', nullable: true })
   agentId: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  customerId: number | null; // ✅ اضافه شد
 
   @Column({ type: 'varchar', length: 200 })
   customerName: string;
@@ -104,6 +109,10 @@ export class ConversationEntity {
   @ManyToOne(() => StaffEntity)
   @JoinColumn({ name: 'agentId' })
   agent: StaffEntity;
+
+  @ManyToOne(() => CustomerEntity, (customer) => customer.conversations)
+  @JoinColumn({ name: 'customerId' })
+  customer: CustomerEntity;
 
   @OneToMany(() => MessageEntity, (message) => message.conversation)
   messages: MessageEntity[];

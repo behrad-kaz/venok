@@ -16,6 +16,16 @@ export class CreateMessageDto {
   @IsOptional()
   @IsBoolean()
   isInternalNote?: boolean;
+
+  @ApiPropertyOptional({ description: 'آدرس فایل پیوست شده', example: '/files/chat-images/image.png' })
+  @IsOptional()
+  @IsString()
+  fileUrl?: string;
+
+  @ApiPropertyOptional({ description: 'نوع فایل', example: 'image', enum: ['image', 'document', 'video', 'audio'] })
+  @IsOptional()
+  @IsString()
+  fileType?: string;
 }
 
 export class UpdateMessageDto {
@@ -40,6 +50,8 @@ export class MessageResponseDto {
   isInternalNote: boolean;
   isRead: boolean;
   readAt: Date | null;
+  fileUrl: string | null;
+  fileType: string | null;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;

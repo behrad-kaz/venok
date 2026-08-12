@@ -1,3 +1,4 @@
+// src/app.controller.ts
 import {
   Controller,
   Post,
@@ -6,26 +7,29 @@ import {
   UseInterceptors,
   ParseFilePipe,
   MaxFileSizeValidator,
-  FileTypeValidator,
   Body,
   Delete,
+  UseGuards,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { AppService } from './app.service';
-import { ApiConsumes, ApiBody, ApiTags, ApiSecurity, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiConsumes, ApiBody, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { deleteImage, saveImage } from './shared/utils/file-utils';
 import { UploadedFileDto } from './shared/dtos/uploaded-file.dto';
 import { UploadedFilesDto } from './shared/dtos/uploaded-files.dto';
 import { DeleteFileDto } from './shared/dtos/delete-file.dto';
 import { ImagesPipe } from './shared/pips/images.pipe';
+import { Public } from './shared/decorators/public.decorator';
 
 @ApiTags('upload')
-@ApiBearerAuth('JWT-auth') 
 @Controller('upload')
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
   @Post('file')
+  @Public() // ✅ مسیر عمومی
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -57,22 +61,45 @@ export class AppController {
     },
   })
   @UseInterceptors(FileInterceptor('file'))
-  uploadFile(
+  async uploadFile(
     @UploadedFile(
       new ParseFilePipe({
         validators: [
           new MaxFileSizeValidator({ maxSize: 10000000 }),
-          new FileTypeValidator({ fileType: /(png|jpeg|jpg|gif|webp)$/ }),
         ],
+        fileIsRequired: true,
       }),
     )
     file: Express.Multer.File,
     @Body() body: UploadedFileDto,
   ) {
-    return saveImage(file, body);
+    try {
+      console.log('📤 درخواست آپلود فایل:', {
+        originalName: file.originalname,
+        size: file.size,
+        mimetype: file.mimetype,
+        folder: body.folder,
+      });
+      
+      const result = await saveImage(file, body);
+      console.log('✅ فایل با موفقیت ذخیره شد:', result);
+      return result;
+      
+    } catch (error) {
+      console.error('❌ خطا در آپلود فایل:', error);
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          message: error.message || 'خطا در آپلود فایل',
+          error: error.stack,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   @Post('files')
+  @Public()
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -118,17 +145,29 @@ export class AppController {
     files: Express.Multer.File[],
     @Body() body: UploadedFilesDto,
   ) {
-    const results = await Promise.all(
-      files.map((file) => saveImage(file, body)),
-    );
-    return {
-      success: true,
-      count: files.length,
-      files: results,
-    };
+    try {
+      const results = await Promise.all(
+        files.map((file) => saveImage(file, body)),
+      );
+      return {
+        success: true,
+        count: files.length,
+        files: results,
+      };
+    } catch (error) {
+      console.error('❌ خطا در آپلود فایل‌ها:', error);
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          message: error.message || 'خطا در آپلود فایل‌ها',
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   @Delete('file')
+  @Public()
   @ApiBody({ type: DeleteFileDto })
   deleteFile(@Body() body: DeleteFileDto) {
     return deleteImage(body.fileName, body.folder);

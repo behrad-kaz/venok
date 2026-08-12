@@ -9,7 +9,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // ============================================
-  // 1. CORS - باید قبل از Helmet باشد
+  // 1. CORS
   // ============================================
   app.enableCors({
     origin: true,
@@ -20,7 +20,7 @@ async function bootstrap() {
   });
 
   // ============================================
-  // 2. Helmet - با تنظیمات مناسب برای تصاویر
+  // 2. Helmet
   // ============================================
   app.use(
     helmet({
@@ -28,17 +28,13 @@ async function bootstrap() {
         directives: {
           defaultSrc: ["'self'"],
           styleSrc: ["'self'", "'unsafe-inline'"],
-          // ✅ اجازه بارگذاری تصاویر از localhost و data
           imgSrc: ["'self'", 'data:', 'validator.swagger.io', 'http://localhost:3000', 'http://localhost:3001'],
           scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-          // ✅ اجازه اتصال به API
-          connectSrc: ["'self'", 'http://localhost:3000', 'http://localhost:3001'],
+          connectSrc: ["'self'", 'http://localhost:3000', 'http://localhost:3001', 'ws://localhost:3000'],
         },
       },
       crossOriginEmbedderPolicy: false,
-      // ✅ اجازه دسترسی به منابع از domainهای دیگر
       crossOriginResourcePolicy: { policy: "cross-origin" },
-      // ✅ اجازه نمایش محتوا در iframe
       frameguard: { action: 'deny' },
     }),
   );
@@ -94,6 +90,7 @@ async function bootstrap() {
   await app.listen(port);
   console.log(`🚀 Application is running on: http://localhost:${port}`);
   console.log(`📚 Swagger documentation: http://localhost:${port}/documentation`);
+  console.log(`🔌 WebSocket is running on: ws://localhost:${port}`);
 }
 
 bootstrap().catch((error) => {

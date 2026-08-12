@@ -6,7 +6,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like } from 'typeorm';
+import { Repository, Like, IsNull } from 'typeorm';
 import { UserEntity, UserRole } from '../entities/user.entity';
 import {
   UserDto,
@@ -16,13 +16,15 @@ import {
 } from '../dtos/user.dto';
 import { UserQueryDto, UserSort } from '../dtos/user-query.dto';
 import { deleteImage, extractFileInfo } from '../../shared/utils/file-utils';
-import * as bcrypt from 'bcrypt';
+import { StaffEntity } from '../../staff/entities/staff.entity';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(UserEntity)
     private userRepository: Repository<UserEntity>,
+    @InjectRepository(StaffEntity)
+    private staffRepository: Repository<StaffEntity>,
   ) {}
 
   async findUserById(id: number) {
@@ -152,9 +154,29 @@ export class UserService {
   }
 
   async findByMobile(mobile: string) {
-    return await this.userRepository.findOne({
+    const user = await this.userRepository.findOne({
       where: { mobile },
     });
+
+    if (!user) {
+      return null;
+    }
+
+    const staff = await this.staffRepository.findOne({
+      where: { 
+        userId: user.id, 
+        deletedAt: IsNull(),
+      },
+      relations: {
+        department: true,
+      },
+    });
+
+    if (staff) {
+      (user as any).staff = staff;
+    }
+
+    return user;
   }
 
   async create(body: UserDto) {
@@ -261,9 +283,7 @@ export class UserService {
   }
 
   async login(body: LoginDto) {
-    const user = await this.userRepository.findOne({
-      where: { mobile: body.mobile },
-    });
+    const user = await this.findByMobile(body.mobile);
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
@@ -343,5 +363,18 @@ export class UserService {
 
   async updateLastLogin(id: number) {
     await this.userRepository.update(id, { lastLogin: new Date() });
+  }
+
+  // ✅ متد جدید برای دریافت staff توسط userId
+  async findStaffByUserId(userId: number) {
+    return await this.staffRepository.findOne({
+      where: { userId, deletedAt: IsNull() },
+      select: {
+        id: true,
+        role: true,
+        name: true,
+        departmentId: true,
+      },
+    });
   }
 }

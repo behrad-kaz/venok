@@ -1,3 +1,4 @@
+// src/app.module.ts
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -22,6 +23,8 @@ import { StaffModule } from './staff/staff.module';
 import { SupportModule } from './support/support.module';
 import { ConversationModule } from './conversation/conversation.module';
 import { WidgetModule } from './widget/widget.module';
+import { CustomerModule } from './customer/customer.module';
+import { DashboardModule } from './dashboard/dashboard.module'; // ✅ اضافه شد
 
 @Module({
   imports: [
@@ -48,17 +51,19 @@ import { WidgetModule } from './widget/widget.module';
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
-        limit: 30,
+        limit: 100,
       },
     ]),
     AuthModule,
     UserModule,
-    OrganizationModule, 
+    OrganizationModule,
     WorkspaceModule,
     StaffModule,
     SupportModule,
     ConversationModule,
     WidgetModule,
+    CustomerModule,
+    DashboardModule, // ✅ اضافه شد
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'files'),
       serveRoot: '/files',

@@ -22,7 +22,7 @@ export class MessageService {
     private staffRepository: Repository<StaffEntity>,
   ) {}
 
-  async getConversationMessages(conversationId: number, userId: number, userRole: UserRole) {
+  async getConversationMessages(conversationId: number, userId: number, userRole: UserRole): Promise<MessageEntity[]> {
     const conversation = await this.conversationRepository.findOne({
       where: { id: conversationId },
     });
@@ -31,11 +31,15 @@ export class MessageService {
       throw new NotFoundException('Conversation not found');
     }
 
-    if (userRole === UserRole.USER && conversation.agentId !== userId) {
-      throw new ForbiddenException('You can only view messages from your own conversations');
+    if (userId !== 0 && userRole !== UserRole.ADMIN && conversation.agentId !== userId) {
+      if (userId !== 0) {
+        throw new ForbiddenException('You can only view messages from your own conversations');
+      }
     }
 
-    await this.markMessagesAsRead(conversationId, userId, userRole);
+    if (userId !== 0) {
+      await this.markMessagesAsRead(conversationId, userId, userRole);
+    }
 
     const messages = await this.messageRepository.find({
       where: { conversationId },
@@ -43,7 +47,7 @@ export class MessageService {
         sender: true,
       },
       order: {
-        createdAt: 'ASC',
+        createdAt: 'ASC', // ✅ از قدیمی‌ترین به جدیدترین
       },
     });
 
@@ -56,7 +60,7 @@ export class MessageService {
     userId: number,
     userRole: UserRole,
     senderName: string,
-  ) {
+  ): Promise<MessageEntity> {
     const conversation = await this.conversationRepository.findOne({
       where: { id: conversationId },
     });
@@ -72,7 +76,9 @@ export class MessageService {
     let senderType: MessageSenderType;
     let senderId: number | null = null;
 
-    if (userRole === UserRole.ADMIN || userRole === UserRole.MODERATOR) {
+    if (userId === 0) {
+      senderType = MessageSenderType.CUSTOMER;
+    } else if (userRole === UserRole.ADMIN || userRole === UserRole.MODERATOR) {
       senderType = MessageSenderType.AGENT;
       const staff = await this.staffRepository.findOne({
         where: { userId: userId },
@@ -80,23 +86,49 @@ export class MessageService {
       if (staff) {
         senderId = staff.id;
       }
+    } else if (userRole === UserRole.USER) {
+      const staff = await this.staffRepository.findOne({
+        where: { userId: userId },
+      });
+      
+      if (staff) {
+        senderType = MessageSenderType.AGENT;
+        senderId = staff.id;
+      } else {
+        senderType = MessageSenderType.CUSTOMER;
+      }
     } else {
       senderType = MessageSenderType.CUSTOMER;
     }
 
-    const message = this.messageRepository.create({
-      conversationId,
+    console.log('📝 ایجاد پیام:', {
+      userId,
+      userRole,
       senderType,
       senderId,
       senderName,
+      hasFile: !!body.fileUrl,
+    });
+
+    const newMessage = this.messageRepository.create({
+      conversationId,
+      senderType,
+      senderId,
+      senderName: senderName || (senderType === MessageSenderType.CUSTOMER ? 'مشتری' : 'پشتیبانی'),
       content: body.content,
       isInternalNote: body.isInternalNote || false,
       isRead: false,
-      createdBy: userId,
+      createdBy: userId === 0 ? null : userId,
+      fileUrl: body.fileUrl || null,
+      fileType: body.fileType || null,
     });
 
-    const saved = await this.messageRepository.save(message);
-
+    const saved = await this.messageRepository.save(newMessage);
+    
+    if (Array.isArray(saved)) {
+      return saved[0];
+    }
+    
     conversation.lastActivity = new Date();
     await this.conversationRepository.save(conversation);
 
@@ -108,7 +140,7 @@ export class MessageService {
     body: UpdateMessageDto,
     userId: number,
     userRole: UserRole,
-  ) {
+  ): Promise<MessageEntity> {
     const message = await this.messageRepository.findOne({
       where: { id },
     });
@@ -117,7 +149,7 @@ export class MessageService {
       throw new NotFoundException('Message not found');
     }
 
-    if (userRole !== UserRole.ADMIN && message.createdBy !== userId) {
+    if (userId !== 0 && userRole !== UserRole.ADMIN && message.createdBy !== userId) {
       throw new ForbiddenException('You are not allowed to update this message');
     }
 
@@ -130,10 +162,17 @@ export class MessageService {
     }
 
     const saved = await this.messageRepository.save(message);
+    
+    if (Array.isArray(saved)) {
+      return saved[0];
+    }
+    
     return saved;
   }
 
-  async markMessagesAsRead(conversationId: number, userId: number, userRole: UserRole) {
+  async markMessagesAsRead(conversationId: number, userId: number, userRole: UserRole): Promise<void> {
+    if (userId === 0) return;
+
     const query = this.messageRepository
       .createQueryBuilder()
       .update(MessageEntity)
@@ -145,7 +184,7 @@ export class MessageService {
     await query.execute();
   }
 
-  async deleteMessage(id: number, userId: number, userRole: UserRole) {
+  async deleteMessage(id: number, userId: number, userRole: UserRole): Promise<{ message: string }> {
     const message = await this.messageRepository.findOne({
       where: { id },
     });
@@ -154,7 +193,7 @@ export class MessageService {
       throw new NotFoundException('Message not found');
     }
 
-    if (userRole !== UserRole.ADMIN && message.createdBy !== userId) {
+    if (userId !== 0 && userRole !== UserRole.ADMIN && message.createdBy !== userId) {
       throw new ForbiddenException('You are not allowed to delete this message');
     }
 
