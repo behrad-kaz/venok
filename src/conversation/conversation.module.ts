@@ -16,7 +16,8 @@ import { WorkspaceService } from '../workspace/services/workspace.service';
 import { OrganizationEntity } from '../organization/entities/organization.entity';
 import { UserEntity } from '../user/entities/user.entity';
 import { ConversationGateway } from './conversation.gateway';
-import { CustomerModule } from '../customer/customer.module'; // ✅ اضافه شد
+import { CustomerModule } from '../customer/customer.module';
+import { NotificationModule } from '../notification/notification.module'; // ✅ اضافه شد
 
 @Module({
   imports: [
@@ -29,7 +30,8 @@ import { CustomerModule } from '../customer/customer.module'; // ✅ اضافه 
       OrganizationEntity,
       UserEntity,
     ]),
-    CustomerModule, 
+    CustomerModule,
+    NotificationModule, // ✅ اضافه شد
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({

@@ -25,6 +25,7 @@ import { ConversationModule } from './conversation/conversation.module';
 import { WidgetModule } from './widget/widget.module';
 import { CustomerModule } from './customer/customer.module';
 import { DashboardModule } from './dashboard/dashboard.module'; // ✅ اضافه شد
+import { NotificationModule } from './notification/notification.module';
 
 @Module({
   imports: [
@@ -63,7 +64,8 @@ import { DashboardModule } from './dashboard/dashboard.module'; // ✅ اضاف�
     ConversationModule,
     WidgetModule,
     CustomerModule,
-    DashboardModule, // ✅ اضافه شد
+    DashboardModule,
+    NotificationModule,
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'files'),
       serveRoot: '/files',

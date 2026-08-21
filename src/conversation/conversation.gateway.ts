@@ -24,7 +24,9 @@ import { UserRole } from '../user/entities/user.entity';
   transports: ['websocket', 'polling'],
 })
 @Injectable()
-export class ConversationGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class ConversationGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server: Server;
 
@@ -38,7 +40,7 @@ export class ConversationGateway implements OnGatewayConnection, OnGatewayDiscon
 
   async handleConnection(client: Socket) {
     console.log(`🔌 Client connected: ${client.id}`);
-    
+
     const token = client.handshake.auth.token;
     if (!token) {
       console.log(`ℹ️ Client ${client.id} connected without token (widget)`);
@@ -49,7 +51,7 @@ export class ConversationGateway implements OnGatewayConnection, OnGatewayDiscon
 
   handleDisconnect(client: Socket) {
     console.log(`🔌 Client disconnected: ${client.id}`);
-    
+
     const conversationId = this.socketConversations.get(client.id);
     if (conversationId) {
       const room = this.conversationRooms.get(conversationId);
@@ -69,24 +71,27 @@ export class ConversationGateway implements OnGatewayConnection, OnGatewayDiscon
     @MessageBody() data: { conversationId: string },
   ) {
     const { conversationId } = data;
-    console.log(`📩 Client ${client.id} joining conversation: ${conversationId}`);
+    console.log(
+      `📩 Client ${client.id} joining conversation: ${conversationId}`,
+    );
 
     this.socketConversations.set(client.id, conversationId);
-    
+
     if (!this.conversationRooms.has(conversationId)) {
       this.conversationRooms.set(conversationId, new Set());
     }
     this.conversationRooms.get(conversationId)?.add(client.id);
-    
+
     client.join(`conversation_${conversationId}`);
 
     try {
-      const messages: MessageEntity[] = await this.messageService.getConversationMessages(
-        parseInt(conversationId),
-        0,
-        'user' as any,
-      );
-      
+      const messages: MessageEntity[] =
+        await this.messageService.getConversationMessages(
+          parseInt(conversationId),
+          0,
+          'user' as any,
+        );
+
       const formattedMessages = messages.map((msg: MessageEntity) => ({
         id: msg.id,
         text: msg.content,
@@ -94,14 +99,18 @@ export class ConversationGateway implements OnGatewayConnection, OnGatewayDiscon
         timestamp: msg.createdAt,
         isInternal: msg.isInternalNote,
         senderName: msg.senderName,
+        fileUrl: msg.fileUrl,
+        fileType: msg.fileType,
       }));
-      
+
       client.emit('conversation_joined', {
         conversationId,
         messages: formattedMessages,
       });
-      
-      console.log(`✅ Sent ${formattedMessages.length} messages to client ${client.id}`);
+
+      console.log(
+        `✅ Sent ${formattedMessages.length} messages to client ${client.id}`,
+      );
     } catch (error) {
       console.error('❌ Error fetching messages:', error);
       client.emit('error', { message: 'Failed to fetch messages' });
@@ -111,31 +120,63 @@ export class ConversationGateway implements OnGatewayConnection, OnGatewayDiscon
   @SubscribeMessage('send_message')
   async handleSendMessage(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { 
-      conversationId: string; 
-      text: string; 
+    @MessageBody()
+    data: {
+      conversationId: string;
+      text: string;
       isInternal?: boolean;
+      senderName?: string;
+      senderType?: string;
     },
   ) {
-    const { conversationId, text, isInternal = false } = data;
-    console.log(`💬 Message from ${client.id} in ${conversationId}: ${text}`);
+    const {
+      conversationId,
+      text,
+      isInternal = false,
+      senderName,
+      senderType,
+    } = data;
+    console.log('🔴🔴🔴 [GATEWAY] دریافت پیام:', {
+      conversationId,
+      text,
+      senderName,
+      senderType,
+    });
+    console.log('🔴🔴🔴 [GATEWAY] Stack:', new Error().stack);
+
+    // ✅ اگر پیام قبلاً ذخیره شده باشد، دوباره ذخیره نکن
+    // برای این کار از یک Set استفاده می‌کنیم
+    const messageKey = `${conversationId}-${text}-${Date.now()}`;
 
     try {
+      let messageSenderType = 'customer';
+      let messageSenderName = senderName || 'مشتری';
+
+      if (senderType) {
+        messageSenderType = senderType;
+      } else if (senderName && senderName !== 'مشتری') {
+        messageSenderType = 'agent';
+      }
+
+      console.log(
+        `📝 senderType: ${messageSenderType}, senderName: ${messageSenderName}`,
+      );
+
       const createMessageDto: CreateMessageDto = {
         content: text,
         isInternalNote: isInternal,
       };
 
-      // ✅ ذخیره پیام در دیتابیس
+      // ✅ ذخیره پیام
       const message: MessageEntity = await this.messageService.createMessage(
         parseInt(conversationId),
         createMessageDto,
         0,
-        'user' as any,
-        'مشتری',
+        messageSenderType === 'customer' ? 'user' : ('admin' as any),
+        messageSenderName,
       );
 
-      // ✅ ارسال پیام به همه اعضای room (هم مشتری و هم پشتیبانی)
+      // ✅ ارسال پیام به همه اعضای room
       this.server.to(`conversation_${conversationId}`).emit('new_message', {
         id: message.id,
         text: message.content,
@@ -143,6 +184,9 @@ export class ConversationGateway implements OnGatewayConnection, OnGatewayDiscon
         timestamp: message.createdAt,
         isInternal: message.isInternalNote,
         senderName: message.senderName,
+        fileUrl: message.fileUrl,
+        fileType: message.fileType,
+        conversationId: parseInt(conversationId),
       });
 
       console.log(`✅ Message sent to conversation ${conversationId}`);
@@ -152,15 +196,22 @@ export class ConversationGateway implements OnGatewayConnection, OnGatewayDiscon
     }
   }
 
-  // ✅ متد جدید: ارسال پیام از سمت پشتیبانی (Admin/Manager/Staff)
-  async sendSupportMessage(conversationId: number, text: string, senderName: string, senderId: number) {
+  async sendSupportMessage(
+    conversationId: number,
+    text: string,
+    senderName: string,
+    senderId: number,
+    fileUrl?: string,
+    fileType?: string,
+  ) {
     try {
       const createMessageDto: CreateMessageDto = {
         content: text,
         isInternalNote: false,
+        fileUrl: fileUrl,
+        fileType: fileType,
       };
 
-      // ✅ ذخیره پیام در دیتابیس
       const message: MessageEntity = await this.messageService.createMessage(
         conversationId,
         createMessageDto,
@@ -169,7 +220,6 @@ export class ConversationGateway implements OnGatewayConnection, OnGatewayDiscon
         senderName,
       );
 
-      // ✅ ارسال پیام به همه اعضای room (هم مشتری و هم پشتیبانی)
       this.server.to(`conversation_${conversationId}`).emit('new_message', {
         id: message.id,
         text: message.content,
@@ -177,6 +227,9 @@ export class ConversationGateway implements OnGatewayConnection, OnGatewayDiscon
         timestamp: message.createdAt,
         isInternal: message.isInternalNote,
         senderName: senderName,
+        fileUrl: message.fileUrl,
+        fileType: message.fileType,
+        conversationId: conversationId,
       });
 
       console.log(`✅ Support message sent to conversation ${conversationId}`);
