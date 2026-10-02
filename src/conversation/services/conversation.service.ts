@@ -33,6 +33,52 @@ export class ConversationService {
     private readonly customerService: CustomerService,
   ) {}
 
+  private static cleanConversation(conversation: ConversationEntity) {
+    const { messages, customer, agent, team, ...rest } = conversation as any;
+
+    const cleanMessages = (messages || []).map((m: any) => {
+      const { conversation: _c, sender, ...msgRest } = m;
+      let cleanSender;
+      if (sender) {
+        const { user, ...senderRest } = sender as any;
+        let cleanUser;
+        if (user) {
+          const { password: _p, ...userRest } = user as any;
+          cleanUser = userRest;
+        }
+        cleanSender = { ...senderRest, user: cleanUser };
+      }
+      return { ...msgRest, sender: cleanSender };
+    });
+
+    const cleanCustomer = customer
+      ? (() => {
+          const { conversations: _c, ...c } = customer as any;
+          return c;
+        })()
+      : null;
+
+    const cleanAgent = agent
+      ? (() => {
+          const { user, ...a } = agent as any;
+          let cleanUser;
+          if (user) {
+            const { password: _p, ...u } = user as any;
+            cleanUser = u;
+          }
+          return { ...a, user: cleanUser };
+        })()
+      : null;
+
+    return {
+      ...rest,
+      customer: cleanCustomer,
+      agent: cleanAgent,
+      team: team ? { ...team } : null,
+      messages: cleanMessages,
+    };
+  }
+
   // ✅ متد ایجاد گفتگوی عمومی (ویجت)
   async createPublic(body: CreateConversationDto, workspaceId: number) {
     const workspace = await this.workspaceRepository.findOne({
@@ -340,7 +386,7 @@ export class ConversationService {
       const unreadCount = messages.filter((m) => !m.isRead && m.senderType !== 'agent').length;
 
       return {
-        ...conversation,
+        ...ConversationService.cleanConversation(conversation),
         messagesCount: messages.length,
         unreadCount,
       };
@@ -379,7 +425,7 @@ export class ConversationService {
     const unreadCount = messages.filter((m) => !m.isRead && m.senderType !== 'agent').length;
 
     return {
-      ...conversation,
+      ...ConversationService.cleanConversation(conversation),
       messagesCount: messages.length,
       unreadCount,
     };
@@ -476,7 +522,7 @@ export class ConversationService {
     const unreadCount = messages.filter((m) => !m.isRead && m.senderType !== 'agent').length;
 
     return {
-      ...conversation,
+      ...ConversationService.cleanConversation(conversation),
       messagesCount: messages.length,
       unreadCount,
     };

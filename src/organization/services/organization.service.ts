@@ -24,6 +24,22 @@ export class OrganizationService {
     private userRepository: Repository<UserEntity>,
   ) {}
 
+  private static cleanOrganization(organization: OrganizationEntity | null) {
+    if (!organization) return null;
+
+    const { workspaces, ...rest } = organization as any;
+
+    const cleanWorkspaces = (workspaces || []).map((w: any) => {
+      const { organization: _o, ...wsRest } = w;
+      return wsRest;
+    });
+
+    return {
+      ...rest,
+      workspaces: cleanWorkspaces,
+    };
+  }
+
   async findAll(queryParams: OrganizationQueryDto, currentUserId: number) {
     const page = queryParams.page || 1;
     const limit = queryParams.limit || 10;
@@ -56,7 +72,7 @@ export class OrganizationService {
     });
 
     return {
-      data,
+      data: data.map((org) => OrganizationService.cleanOrganization(org)),
       total,
       page,
       limit,
@@ -76,7 +92,7 @@ export class OrganizationService {
       throw new NotFoundException('Organization not found');
     }
 
-    return organization;
+    return OrganizationService.cleanOrganization(organization);
   }
 
   async findBySlug(slug: string) {
@@ -91,7 +107,7 @@ export class OrganizationService {
       throw new NotFoundException('Organization not found');
     }
 
-    return organization;
+    return OrganizationService.cleanOrganization(organization);
   }
 
   async findByUser(userId: number) {
@@ -105,18 +121,24 @@ export class OrganizationService {
       },
     });
 
-    return organizations;
+    return organizations.map((org) => OrganizationService.cleanOrganization(org));
   }
 
-  async getCurrentOrganization(userId: number) {
-    const organizations = await this.findByUser(userId);
-    if (organizations.length === 0) {
-      throw new NotFoundException('No organization found for this user');
+  async getOrganizationByUser(userId: number, organizationId?: number) {
+    // ✅ ابتدا سعی کن با organizationId از JWT توکن
+    if (organizationId) {
+      const organization = await this.organizationRepository.findOne({
+        where: { id: organizationId },
+        relations: {
+          workspaces: true,
+        },
+      });
+      if (organization) {
+        return OrganizationService.cleanOrganization(organization);
+      }
     }
-    return organizations[0];
-  }
 
-  async getOrganizationByUser(userId: number) {
+    // ✅ اگر نشد، با ownerUserId جستجو کن
     const organization = await this.organizationRepository.findOne({
       where: { ownerUserId: userId },
       relations: {
@@ -124,7 +146,29 @@ export class OrganizationService {
       },
     });
 
-    return organization;
+    return OrganizationService.cleanOrganization(organization);
+  }
+
+  async getCurrentOrganization(userId: number, organizationId?: number) {
+    // ✅ ابتدا سعی کن با organizationId از JWT توکن
+    if (organizationId) {
+      const org = await this.organizationRepository.findOne({
+        where: { id: organizationId },
+        relations: {
+          workspaces: true,
+        },
+      });
+      if (org) {
+        return OrganizationService.cleanOrganization(org);
+      }
+    }
+
+    // ✅ اگر نشد، با ownerUserId جستجو کن
+    const organizations = await this.findByUser(userId);
+    if (organizations.length === 0) {
+      throw new NotFoundException('No organization found for this user');
+    }
+    return organizations[0];
   }
 
   async create(body: CreateOrganizationDto, userId: number) {

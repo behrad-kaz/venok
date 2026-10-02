@@ -65,7 +65,10 @@ export class OrganizationController {
   @Get('current')
   @ApiOperation({ summary: 'دریافت سازمان جاری کاربر' })
   getCurrent(@CurrentUser() currentUser: any) {
-    return this.organizationService.getCurrentOrganization(currentUser.id);
+    return this.organizationService.getCurrentOrganization(
+      currentUser.id,
+      currentUser.organizationId,
+    );
   }
 
   @Public()
@@ -128,6 +131,7 @@ export class OrganizationController {
   ) {
     const organization = await this.organizationService.getOrganizationByUser(
       currentUser.id,
+      currentUser.organizationId,
     );
 
     if (!organization) {
